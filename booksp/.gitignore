@@ -1,3 +1,14 @@
 GoogleService-Info.plist
+
+# Refer to https://github.com/github/gitignore/blob/main/Swift.gitignore
+
+## User settings
 xcuserdata/
-*.pbxproj
+
+# Swift Package Manager
+#
+# Add this line if you want to avoid checking in source code from Swift Package Manager dependencies.
+Packages/
+Package.pins
+Package.resolved
+*.xcodeproj
