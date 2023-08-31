@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		CA54C2C62AA04699004ECD01 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = CA54C2C52AA04699004ECD01 /* GoogleService-Info.plist */; };
 		CAE2E3932A55904B0035F947 /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = CAE2E3922A55904B0035F947 /* RealityKitContent */; };
 		CAE2E3952A55904B0035F947 /* bookspApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAE2E3942A55904B0035F947 /* bookspApp.swift */; };
 		CAE2E3972A55904B0035F947 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAE2E3962A55904B0035F947 /* ContentView.swift */; };
@@ -15,7 +16,6 @@
 		CAE2E39D2A55904D0035F947 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CAE2E39C2A55904D0035F947 /* Assets.xcassets */; };
 		CAE2E3A02A55904D0035F947 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CAE2E39F2A55904D0035F947 /* Preview Assets.xcassets */; };
 		CAE2E3AA2A55904D0035F947 /* bookspTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAE2E3A92A55904D0035F947 /* bookspTests.swift */; };
-		CAEB54FC2A7FE30200C172E9 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = CAEB54FB2A7FE30200C172E9 /* GoogleService-Info.plist */; };
 		CAEB54FE2A7FE35900C172E9 /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = CAEB54FD2A7FE35900C172E9 /* .gitignore */; };
 		E99874732A75020600960EF4 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = E99874722A75020600960EF4 /* FirebaseAuth */; };
 		E998747D2A75174600960EF4 /* Firebase.swift in Sources */ = {isa = PBXBuildFile; fileRef = E998747C2A75174600960EF4 /* Firebase.swift */; };
@@ -33,7 +33,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		CA7528B72A81F6B7009501B0 /* bookspDebug.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = bookspDebug.entitlements; sourceTree = "<group>"; };
+		CA54C2C52AA04699004ECD01 /* GoogleService-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		CAE2E38D2A55904B0035F947 /* booksp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = booksp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CAE2E3912A55904B0035F947 /* RealityKitContent */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = RealityKitContent; sourceTree = "<group>"; };
 		CAE2E3942A55904B0035F947 /* bookspApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = bookspApp.swift; sourceTree = "<group>"; };
@@ -44,7 +44,6 @@
 		CAE2E39F2A55904D0035F947 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		CAE2E3A52A55904D0035F947 /* bookspTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = bookspTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		CAE2E3A92A55904D0035F947 /* bookspTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = bookspTests.swift; sourceTree = "<group>"; };
-		CAEB54FB2A7FE30200C172E9 /* GoogleService-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		CAEB54FD2A7FE35900C172E9 /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 		E998747C2A75174600960EF4 /* Firebase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Firebase.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -97,12 +96,11 @@
 				CAE2E3962A55904B0035F947 /* ContentView.swift */,
 				CAE2E3982A55904B0035F947 /* ImmersiveView.swift */,
 				E998747C2A75174600960EF4 /* Firebase.swift */,
-				CAEB54FB2A7FE30200C172E9 /* GoogleService-Info.plist */,
+				CA54C2C52AA04699004ECD01 /* GoogleService-Info.plist */,
 				CAE2E39A2A55904B0035F947 /* ImageBasedLight.exr */,
 				CAE2E39C2A55904D0035F947 /* Assets.xcassets */,
 				CAE2E39E2A55904D0035F947 /* Preview Content */,
 				CAEB54FD2A7FE35900C172E9 /* .gitignore */,
-				CA7528B72A81F6B7009501B0 /* bookspDebug.entitlements */,
 			);
 			path = booksp;
 			sourceTree = "<group>";
@@ -229,7 +227,7 @@
 			files = (
 				CAEB54FE2A7FE35900C172E9 /* .gitignore in Resources */,
 				CAE2E39D2A55904D0035F947 /* Assets.xcassets in Resources */,
-				CAEB54FC2A7FE30200C172E9 /* GoogleService-Info.plist in Resources */,
+				CA54C2C62AA04699004ECD01 /* GoogleService-Info.plist in Resources */,
 				CAE2E3A02A55904D0035F947 /* Preview Assets.xcassets in Resources */,
 				CAE2E39B2A55904B0035F947 /* ImageBasedLight.exr in Resources */,
 			);
