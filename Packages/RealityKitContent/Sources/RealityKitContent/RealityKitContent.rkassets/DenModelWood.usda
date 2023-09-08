@@ -1,0 +1,124 @@
+#usda 1.0
+(
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "Root" (
+    prepend apiSchemas = ["MaterialBindingAPI"]
+)
+{
+    reorder nameChildren = ["RoomBlock_A", "Materials", "Bookshelf", "RoomBlock_B", "RoomBlock_C", "RoomBlock_D", "CeilingWhite"]
+    rel material:binding = None (
+        bindMaterialAs = "weakerThanDescendants"
+    )
+
+    def "RoomBlock_A" (
+        active = true
+        prepend apiSchemas = ["MaterialBindingAPI"]
+        references = @DenSampleNeo.usdz@
+    )
+    {
+        rel material:binding = </Root/Materials/Material_002> (
+            bindMaterialAs = "strongerThanDescendants"
+        )
+        quatf xformOp:orient = (1, 0, 0, 0)
+        float3 xformOp:scale = (4, 4, 4)
+        float3 xformOp:translate = (0.0034142137, 0, 0.019219875)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+    }
+
+    def "RoomBlock_B" (
+        active = true
+        prepend apiSchemas = ["MaterialBindingAPI"]
+        customData = {
+            float3 rotationEulerHint = (0, 0, 1.5707964)
+        }
+        references = @DenSampleNeo.usdz@
+    )
+    {
+        reorder nameChildren = ["Plane", "Bookshelf"]
+        rel material:binding = </Root/Materials/Material_002> (
+            bindMaterialAs = "strongerThanDescendants"
+        )
+        quatf xformOp:orient = (0.70710677, 0, 0, 0.70710677)
+        float3 xformOp:scale = (4, 4, 4)
+        float3 xformOp:translate = (0.03338623, -7.8526306, 0.010599613)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+    }
+
+    def "CeilingWhite" (
+        active = true
+        prepend apiSchemas = ["MaterialBindingAPI"]
+        references = @CeilingWhite.usdz@</Plane>
+    )
+    {
+        rel material:binding = </Root/Materials/Material_003> (
+            bindMaterialAs = "weakerThanDescendants"
+        )
+        quatf xformOp:orient = (1, 0, 0, 0)
+        float3 xformOp:scale = (8, 8, 8)
+        float3 xformOp:translate = (3.9458854, -3.985649, 4.560003)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+    }
+
+    def "Materials" (
+        active = true
+        references = @DenSampleNeo.usdz@</_materials>
+    )
+    {
+    }
+
+    def "RoomBlock_C" (
+        active = true
+        prepend apiSchemas = ["MaterialBindingAPI"]
+        customData = {
+            float3 rotationEulerHint = (0, 0, 3.1415927)
+        }
+        references = @DenSampleNeo.usdz@
+    )
+    {
+        rel material:binding = </Root/Materials/Material_002> (
+            bindMaterialAs = "strongerThanDescendants"
+        )
+        quatf xformOp:orient = (-4.371139e-8, 0, 0, 1)
+        float3 xformOp:scale = (4, 4, 4)
+        float3 xformOp:translate = (8.000732, -7.8517246, 0.027882576)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+    }
+
+    def "RoomBlock_D" (
+        active = true
+        prepend apiSchemas = ["MaterialBindingAPI"]
+        customData = {
+            float3 rotationEulerHint = (0, 0, 4.7123885)
+        }
+        references = @DenSampleNeo.usdz@
+    )
+    {
+        rel material:binding = </Root/Materials/Material_002> (
+            bindMaterialAs = "strongerThanDescendants"
+        )
+        quatf xformOp:orient = (0.70710677, 0, 0, -0.70710677)
+        float3 xformOp:scale = (4, 4, 4)
+        float3 xformOp:translate = (8.002756, -0.0078190975, 0.032005448)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+    }
+
+    def "Bookshelf" (
+        active = true
+        prepend apiSchemas = ["MaterialBindingAPI"]
+        references = @DenSampleNeo.usdz@</Ventura_notched_bookshelf_160x36x76>
+    )
+    {
+        rel material:binding = </Root/Materials/Ventura_notched_bookshelf_160x36x76> (
+            bindMaterialAs = "weakerThanDescendants"
+        )
+        quatf xformOp:orient = (1, 0, 0, -6.5955815e-17)
+        float3 xformOp:scale = (1.9999998, 1.9999998, 1.9999998)
+        float3 xformOp:translate = (2.9491298, 3.4877763, 0.087946355)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+    }
+}
+
