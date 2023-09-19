@@ -34,6 +34,7 @@
 
 /* Begin PBXFileReference section */
 		CA54C2C52AA04699004ECD01 /* GoogleService-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
+		CA73CF8E2AB89F3300FDACBD /* bookspDebug.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = bookspDebug.entitlements; sourceTree = "<group>"; };
 		CAE2E38D2A55904B0035F947 /* booksp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = booksp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CAE2E3912A55904B0035F947 /* RealityKitContent */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = RealityKitContent; sourceTree = "<group>"; };
 		CAE2E3942A55904B0035F947 /* bookspApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = bookspApp.swift; sourceTree = "<group>"; };
@@ -101,6 +102,7 @@
 				CAE2E39C2A55904D0035F947 /* Assets.xcassets */,
 				CAE2E39E2A55904D0035F947 /* Preview Content */,
 				CAEB54FD2A7FE35900C172E9 /* .gitignore */,
+				CA73CF8E2AB89F3300FDACBD /* bookspDebug.entitlements */,
 			);
 			path = booksp;
 			sourceTree = "<group>";
