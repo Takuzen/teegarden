@@ -10,6 +10,7 @@ import FirebaseAuth
 import FirebaseFirestore
 
 class FirebaseViewModel: ObservableObject {
+    @Published var isLoggedIn:Bool = false
     @Published var mail: String = ""
     @Published var password: String = ""
     @Published var errorMessage: String = ""
@@ -17,12 +18,9 @@ class FirebaseViewModel: ObservableObject {
     
     struct Book: Identifiable {
         let id: String
-        let title: String
-        let author: String
-        let year: Int
+        let thumnailUrl: String
     }
-    
-    
+
     // Sign up function
     func signUp() {
         Auth.auth().createUser(withEmail: mail, password: password) { authResult, error in
@@ -40,6 +38,7 @@ class FirebaseViewModel: ObservableObject {
             if let error = error {
                 self.errorMessage = error.localizedDescription
             } else {
+                self.isLoggedIn = self.isUserLoggedIn()
                 self.errorMessage = "User signed in successfully"
             }
         }
@@ -54,19 +53,21 @@ class FirebaseViewModel: ObservableObject {
     func signOut() {
         do {
             try Auth.auth().signOut()
+            self.isLoggedIn = self.isUserLoggedIn()
         } catch let signOutError as NSError {
             self.errorMessage = "Error signing out: \(signOutError.localizedDescription)"
         }
     }
     
     // Create a book
-    func createFavoriteBook(bookId: String) {
-        var db = Firestore.firestore()
+    func createFavoriteBook(bookId: String, thumnailUrl:String) {
+        let db = Firestore.firestore()
         guard let user = Auth.auth().currentUser else { return }
         
-        db.collection("users").document(user.uid).collection("favorites").document(bookId).setData(["timestamp": FieldValue.serverTimestamp()]) { error in
+        db.collection("users").document(user.uid).collection("favorites").document(bookId).setData(["thumbnailUrl": thumnailUrl]) { error in
             if let error = error {
-                self.errorMessage = "Error adding favorite book: \(error)"
+                self.errorMessage = "E: \(error)"
+                debugPrint(error)
             } else {
                 self.errorMessage = "Favorite book added successfully!"
                 self.getFavoriteBooks()
@@ -77,21 +78,22 @@ class FirebaseViewModel: ObservableObject {
     // Get books
     func getFavoriteBooks() {
         guard let user = Auth.auth().currentUser else { return }
-        var db = Firestore.firestore()
+        let db = Firestore.firestore()
         db.collection("users").document(user.uid).collection("favorites").getDocuments { querySnapshot, error in
             if let error = error {
                 self.errorMessage = "Error getting books: \(error)"
             } else {
                 self.favoriteBooks = querySnapshot?.documents.compactMap { document in
-                    let data = document.data()
-                    if let title = data["title"] as? String,
-                       let author = data["author"] as? String,
-                       let year = data["year"] as? Int {
-                        return Book(id: document.documentID, title: title, author: author, year: year)
+                    debugPrint(document.documentID)
+                    if let thumnailUrl = document.get("thumbnailUrl") as? String {
+                        debugPrint("url is ")
+                        debugPrint(thumnailUrl)
+                        return Book(id: document.documentID, thumnailUrl:thumnailUrl)
                     } else {
                         return nil
                     }
                 } ?? []
+                debugPrint(self.favoriteBooks.count)
             }
         }
     }
@@ -99,7 +101,7 @@ class FirebaseViewModel: ObservableObject {
     // Delete a book
     func deleteBook(bookId: String) {
         guard let user = Auth.auth().currentUser else { return }
-        var db = Firestore.firestore()
+        let db = Firestore.firestore()
         db.collection("users").document(user.uid).collection("books").document(bookId).delete() { error in
             if let error = error {
                 self.errorMessage = "Error deleting book: \(error)"

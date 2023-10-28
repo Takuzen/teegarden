@@ -10,6 +10,71 @@ import FirebaseAuth
 import RealityKit
 import RealityKitContent
 
+import Observation
+import Foundation
+import SwiftyJSON
+
+struct Book {
+    let id: String
+    let volumeInfo:JSON
+}
+
+class GoogleBooksAPIRepository: ObservableObject {
+    @Published var query: String = ""
+    @Published var booksResult: [Book] = []
+    
+    let endpoint = "https://www.googleapis.com/books/v1"
+
+    enum GoogleBooksAPIError : Error {
+        case invalidURLString
+        case notFound
+    }
+    
+    public func getBooks() async {
+        let data = try! await downloadData(urlString: "\(endpoint)/volumes?q=\(query)")
+        let json = JSON(data)
+        let result = await self.setVolume(json)
+        debugPrint(result.prefix(5))
+        DispatchQueue.main.async {
+            self.booksResult = result
+        }
+    }
+    
+    public func getBookById(bookId:String) async {
+        let data = try! await downloadData(urlString: "\(endpoint)/volumes/\(query)")
+        let json = JSON(data)
+        let result = await self.setVolume(json)
+        debugPrint(result.prefix(5))
+        DispatchQueue.main.async {
+            self.booksResult = result
+        }
+    }
+
+    private func setVolume(_ json: JSON) async -> [Book] {
+        let items = json["items"].array!
+        var books: [Book] = []
+        for item in items {
+            let bk = Book(
+                id: item["id"].stringValue,
+                volumeInfo: item["volumeInfo"]
+//                title: item["volumeInfo"]["title"].stringValue
+//                descryption: item["volumeInfo"]["description"].stringValue,
+//                thumbnail: item["volumeInfo"]["imageLinks"]["thumbnail"].stringValue
+            )
+            books.append(bk)
+        }
+        return books
+    }
+    
+    final func downloadData(urlString:String) async throws -> Data {
+        guard let url = URL(string: urlString) else {
+            throw GoogleBooksAPIError.invalidURLString
+        }
+        let (data,_) = try await URLSession.shared.data(from: url)
+        return data
+    }
+}
+
 struct ContentView: View {
 
     @State var showImmersiveSpace = false
@@ -17,21 +82,16 @@ struct ContentView: View {
     @Environment(\.openImmersiveSpace) var openImmersiveSpace
     @Environment(\.dismissImmersiveSpace) var dismissImmersiveSpace
 
-    @ObservedObject var viewModel = FirebaseViewModel()
+    @EnvironmentObject var viewModel: FirebaseViewModel
+    @ObservedObject var googleBooksAPI = GoogleBooksAPIRepository()
     
     var body: some View {
         NavigationSplitView {
-            List {
-                Text("Item")
-            }
-            .navigationTitle("Sidebar")
-            
-            if viewModel.isUserLoggedIn() {
+            if viewModel.isLoggedIn {
                 loggedInView
             } else {
                 loggedOutView
             }
-            
         } detail: {
             VStack {
                 Model3D(named: "Scene", bundle: realityKitContentBundle)
@@ -39,7 +99,7 @@ struct ContentView: View {
 
                 Text("Welcome to BookSP!")
 
-                Toggle("My Den", isOn: $showImmersiveSpace)
+                Toggle("My Space", isOn: $showImmersiveSpace)
                     .toggleStyle(.button)
                     .padding(.top, 50)
             }
@@ -59,20 +119,39 @@ struct ContentView: View {
     
     private var loggedInView: some View {
         VStack {
-            Text("Your favorite books:")
+            TextField("検索ボックス", text: $googleBooksAPI.query)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+                .padding()
+                .onSubmit {
+                    Task {
+                        await googleBooksAPI.getBooks()
+                    }
+                }
             
-            List(viewModel.favoriteBooks) { book in
-                Text("\(book.title) by \(book.author) (\(book.year))")
+            if(googleBooksAPI.booksResult.count>0){
+                ForEach(0 ..< googleBooksAPI.booksResult.count) { index in
+                    Text("Result: \(googleBooksAPI.booksResult[index].volumeInfo["title"].stringValue)")
+                        .onTapGesture {
+                            debugPrint("debug")
+                            debugPrint(googleBooksAPI.booksResult[index].id)
+                            debugPrint(googleBooksAPI.booksResult[index].volumeInfo["imageLinks"]["thumbnail"])
+                            viewModel.createFavoriteBook(
+                                bookId: googleBooksAPI.booksResult[index].id,
+                                thumnailUrl: googleBooksAPI.booksResult[index].volumeInfo["imageLinks"]["thumbnail"].stringValue
+                            )
+                        }
+                }
             }
             
-            Text(viewModel.errorMessage)
-            
             Button(action: {
-                // Log out when button is pressed
                 viewModel.signOut()
             }) {
                 Text("Sign Out")
             }
+        }.onAppear{
+            debugPrint(viewModel.favoriteBooks.count)
+            viewModel.getFavoriteBooks()
+            debugPrint(viewModel.favoriteBooks.count)
         }
     }
     
@@ -81,32 +160,28 @@ struct ContentView: View {
             TextField("Email", text: $viewModel.mail)
                 .keyboardType(.emailAddress)
                 .autocapitalization(.none)
+                .padding()
+                .frame(width : 250.0, height : 100.0)
             
             SecureField("Password", text: $viewModel.password)
+                .padding()
+                .frame(width : 250.0, height : 100.0)
             
             Text(viewModel.errorMessage)
-            
-//            TextField("メールアドレスを入力してください",text: $mail)
-//                .textFieldStyle(RoundedBorderTextFieldStyle())
-//                .padding()
-//                
-//            SecureField("パスワードを入力してください",text:$password)
-//                .textFieldStyle(RoundedBorderTextFieldStyle())
-//                .padding()
         
-            Button(action: {
-                viewModel.signUp()
-            }) {
-                Text("Sign Up")
+            HStack{
+                Button(action: {
+                    viewModel.signUp()
+                }) {
+                    Text("Sign Up")
+                }
+                
+                Button(action: {
+                    viewModel.login()
+                }) {
+                    Text("Log In")
+                }
             }
-            
-            Button(action: {
-                // Sign in when button is pressed
-                viewModel.login()
-            }) {
-                Text("Log In")
-            }
-            
         }
     }
 

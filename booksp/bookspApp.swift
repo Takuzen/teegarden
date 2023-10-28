@@ -24,10 +24,12 @@ struct bookspApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(FirebaseViewModel())
         }
 
         ImmersiveSpace(id: "ImmersiveSpace") {
             ImmersiveView()
+                .environmentObject(FirebaseViewModel())
         }.immersionStyle(selection: .constant(.full), in: .full)
     }
 }
