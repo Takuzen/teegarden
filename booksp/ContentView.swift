@@ -75,15 +75,30 @@ class GoogleBooksAPIRepository: ObservableObject {
     }
 }
 
+func url(s: String) -> String{
+    var i = s
+    debugPrint(i)
+    if(!i.hasPrefix("http")){return ""}
+    let insertIdx = i.index(i.startIndex, offsetBy: 4)
+    i.insert(contentsOf: "s", at: insertIdx)
+    return i
+}
+
 struct ContentView: View {
 
     @State var showImmersiveSpace = false
-
     @Environment(\.openImmersiveSpace) var openImmersiveSpace
     @Environment(\.dismissImmersiveSpace) var dismissImmersiveSpace
-
     @EnvironmentObject var viewModel: FirebaseViewModel
+    
     @ObservedObject var googleBooksAPI = GoogleBooksAPIRepository()
+
+    // Define the layout for your grid
+    let columns: [GridItem] = [
+        GridItem(.flexible(), spacing: CGFloat(10), alignment: nil),
+        GridItem(.flexible(), spacing: CGFloat(10), alignment: nil),
+        GridItem(.flexible(), spacing: CGFloat(10), alignment: nil),
+    ]
     
     var body: some View {
         NavigationSplitView {
@@ -93,18 +108,47 @@ struct ContentView: View {
                 loggedOutView
             }
         } detail: {
-            VStack {
-                Model3D(named: "Scene", bundle: realityKitContentBundle)
-                    .padding(.bottom, 50)
-
-                Text("Welcome to BookSP!")
-
-                Toggle("My Space", isOn: $showImmersiveSpace)
-                    .toggleStyle(.button)
-                    .padding(.top, 50)
+            if showImmersiveSpace {
+                ScrollView {
+                    // LazyVGrid for a vertical grid
+                    LazyVGrid(columns: columns, spacing: 20) {
+                        if(googleBooksAPI.booksResult.count>0){
+                            ForEach(0 ..< googleBooksAPI.booksResult.count) { index in
+                                var i = googleBooksAPI.booksResult[index].volumeInfo["imageLinks"]["thumbnail"].stringValue
+                                AsyncImage(url: URL(string: url(s:i))) { image in
+                                    image.resizable().scaledToFill()
+                                } placeholder: {
+                                    ProgressView()
+                                }
+                                .onTapGesture(count: 2) {
+                                    debugPrint("Called L125 at ContentView.swift")
+                                    debugPrint(googleBooksAPI.booksResult[index].id)
+                                    debugPrint(googleBooksAPI.booksResult[index].volumeInfo["imageLinks"]["thumbnail"])
+                                    viewModel.createFavoriteBook(
+                                        bookId: googleBooksAPI.booksResult[index].id,
+                                        thumnailUrl: googleBooksAPI.booksResult[index].volumeInfo["imageLinks"]["thumbnail"].stringValue
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    .padding(.horizontal) // Add horizontal padding
+                }
             }
-            .navigationTitle("Content")
-            .padding()
+            else{
+                VStack {
+                    Model3D(named: "Scene", bundle: realityKitContentBundle)
+                        .padding(.bottom, 50)
+
+                    Text("Welcome to BookSP!")
+
+                    Toggle("My Space", isOn: $showImmersiveSpace)
+                        .toggleStyle(.button)
+                        .padding(.top, 50)
+                }
+                .navigationTitle("Content")
+                .padding()
+            }
         }
         .onChange(of: showImmersiveSpace) { _, newValue in
             Task {
@@ -128,30 +172,16 @@ struct ContentView: View {
                     }
                 }
             
-            if(googleBooksAPI.booksResult.count>0){
-                ForEach(0 ..< googleBooksAPI.booksResult.count) { index in
-                    Text("Result: \(googleBooksAPI.booksResult[index].volumeInfo["title"].stringValue)")
-                        .onTapGesture {
-                            debugPrint("debug")
-                            debugPrint(googleBooksAPI.booksResult[index].id)
-                            debugPrint(googleBooksAPI.booksResult[index].volumeInfo["imageLinks"]["thumbnail"])
-                            viewModel.createFavoriteBook(
-                                bookId: googleBooksAPI.booksResult[index].id,
-                                thumnailUrl: googleBooksAPI.booksResult[index].volumeInfo["imageLinks"]["thumbnail"].stringValue
-                            )
-                        }
-                }
-            }
-            
             Button(action: {
                 viewModel.signOut()
+                Task{
+                    await dismissImmersiveSpace()
+                    showImmersiveSpace = false
+                }
             }) {
                 Text("Sign Out")
             }
-        }.onAppear{
-            debugPrint(viewModel.favoriteBooks.count)
-            viewModel.getFavoriteBooks()
-            debugPrint(viewModel.favoriteBooks.count)
+
         }
     }
     
@@ -187,6 +217,6 @@ struct ContentView: View {
 
 }
 
-#Preview {
-    ContentView()
-}
+//#Preview {
+//    ContentView()
+//}

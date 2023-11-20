@@ -17,6 +17,8 @@
 		CAE2E3AA2A55904D0035F947 /* bookspTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAE2E3A92A55904D0035F947 /* bookspTests.swift */; };
 		CAEB54FE2A7FE35900C172E9 /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = CAEB54FD2A7FE35900C172E9 /* .gitignore */; };
 		E90D4C522AED211F0038AE6E /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = E90D4C512AED211F0038AE6E /* GoogleService-Info.plist */; };
+		E90D4C542AF600E80038AE6E /* WebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E90D4C532AF600E80038AE6E /* WebView.swift */; };
+		E97CFA192B011DF800424D6D /* PaApi.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97CFA182B011DF800424D6D /* PaApi.swift */; };
 		E99874732A75020600960EF4 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = E99874722A75020600960EF4 /* FirebaseAuth */; };
 		E998747D2A75174600960EF4 /* Firebase.swift in Sources */ = {isa = PBXBuildFile; fileRef = E998747C2A75174600960EF4 /* Firebase.swift */; };
 		E99874812A751D7100960EF4 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = E99874802A751D7100960EF4 /* FirebaseFirestore */; };
@@ -47,6 +49,8 @@
 		CAE2E3A92A55904D0035F947 /* bookspTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = bookspTests.swift; sourceTree = "<group>"; };
 		CAEB54FD2A7FE35900C172E9 /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 		E90D4C512AED211F0038AE6E /* GoogleService-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
+		E90D4C532AF600E80038AE6E /* WebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebView.swift; sourceTree = "<group>"; };
+		E97CFA182B011DF800424D6D /* PaApi.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaApi.swift; sourceTree = "<group>"; };
 		E998747C2A75174600960EF4 /* Firebase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Firebase.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -105,6 +109,8 @@
 				CAE2E39E2A55904D0035F947 /* Preview Content */,
 				CAEB54FD2A7FE35900C172E9 /* .gitignore */,
 				CA73CF8E2AB89F3300FDACBD /* bookspDebug.entitlements */,
+				E90D4C532AF600E80038AE6E /* WebView.swift */,
+				E97CFA182B011DF800424D6D /* PaApi.swift */,
 			);
 			path = booksp;
 			sourceTree = "<group>";
@@ -254,9 +260,11 @@
 			buildActionMask = 2147483647;
 			files = (
 				E998747D2A75174600960EF4 /* Firebase.swift in Sources */,
+				E90D4C542AF600E80038AE6E /* WebView.swift in Sources */,
 				CAE2E3972A55904B0035F947 /* ContentView.swift in Sources */,
 				CAE2E3952A55904B0035F947 /* bookspApp.swift in Sources */,
 				CAE2E3992A55904B0035F947 /* ImmersiveView.swift in Sources */,
+				E97CFA192B011DF800424D6D /* PaApi.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

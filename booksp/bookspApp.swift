@@ -24,12 +24,16 @@ struct bookspApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .environmentObject(FirebaseViewModel())
+                .environmentObject(FirebaseViewModel.shared)
         }
-
+        
+        WindowGroup(id: "webview") {
+            WebViewWindow()
+        }.defaultSize(CGSize(width: 1920, height: 1080))
+        
         ImmersiveSpace(id: "ImmersiveSpace") {
             ImmersiveView()
-                .environmentObject(FirebaseViewModel())
+                .environmentObject(FirebaseViewModel.shared)
         }.immersionStyle(selection: .constant(.full), in: .full)
     }
 }

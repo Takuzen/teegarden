@@ -10,6 +10,8 @@ import FirebaseAuth
 import FirebaseFirestore
 
 class FirebaseViewModel: ObservableObject {
+    static let shared: FirebaseViewModel = .init()
+    
     @Published var isLoggedIn:Bool = false
     @Published var mail: String = ""
     @Published var password: String = ""
