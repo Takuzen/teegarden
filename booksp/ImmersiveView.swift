@@ -15,6 +15,8 @@ import RealityKitContent
 import Observation
 import Foundation
 
+/*
+
 func getImageByUrl(url: String) -> UIImage{
     let url = URL(string: url)
     do {
@@ -141,44 +143,36 @@ class ImageViewModel {
         return entity
     }
 }
+*/
 
 struct ImmersiveView: View {
-    @State var model = ImageViewModel()
+    
+    //@State var model = ImageViewModel()
     @EnvironmentObject var viewModel: FirebaseViewModel
     @Environment(\.openWindow) var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
     
     var body: some View {
         RealityView { content in
-            // Add the initial RealityKit content
-            if let immersiveContentEntity = try? await Entity(named: "DenModelWood", in: realityKitContentBundle) {
-                content.add(immersiveContentEntity)
-
-                // Add an ImageBasedLight for the immersive content
-                if let imageBasedLightURL = Bundle.main.url(forResource: "ImageBasedLight", withExtension: "exr"),
-                   let imageBasedLightImageSource = CGImageSourceCreateWithURL(imageBasedLightURL as CFURL, nil),
-                   let imageBasedLightImage = CGImageSourceCreateImageAtIndex(imageBasedLightImageSource, 0, nil),
-                   let imageBasedLightResource = try? await EnvironmentResource.generate(fromEquirectangular: imageBasedLightImage) {
-                    let imageBasedLightSource = ImageBasedLightComponent.Source.single(imageBasedLightResource)
-
-                    let imageBasedLight = Entity()
-                    imageBasedLight.components.set(ImageBasedLightComponent(source: imageBasedLightSource))
-                    content.add(imageBasedLight)
-
-                    immersiveContentEntity.components.set(ImageBasedLightReceiverComponent(imageBasedLight: imageBasedLight))
-                }
-
-                // Put skybox here.  See example in World project available at
-                // https://developer.apple.com/
+            
+            let rootEntity = Entity()
+            
+            guard let texture = try? TextureResource.load(named: "pure-white-bg") else {
+                return
             }
-            content.add(
-                model.setupContentEntity(
-                    urls:viewModel.favoriteBooks.map{
-                        $0.thumnailUrl
-                    }
-                )
-            )
-            debugPrint("called")
+            var material = UnlitMaterial()
+            material.color = .init(texture: .init(texture))
+            rootEntity.components.set(ModelComponent(
+                mesh: .generateSphere(radius: 1E3),
+                materials: [material]
+            ))
+            rootEntity.scale *= .init(x: -1, y: 1, z: 1)
+            rootEntity.transform.translation += SIMD3<Float>(0.0, 1.0, 0.0)
+            
+            content.add(rootEntity)
+        }
+    }
+/*            debugPrint("called")
         } update: { content in
             debugPrint("update is called")
             debugPrint(content.entities.count)
@@ -222,6 +216,7 @@ struct ImmersiveView: View {
                 openWindow(id: "webview")
             }
     }
+*/
 }
 
 //#Preview {

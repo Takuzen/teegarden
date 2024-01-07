@@ -47,6 +47,18 @@
       }
     ]
   },
+  "97904042-50B9-4C86-A77E-5A6D9D44338C" : {
+    "objectMetadataList" : [
+      [
+        "97904042-50B9-4C86-A77E-5A6D9D44338C",
+        "Root"
+      ],
+      {
+        "isExpanded" : true,
+        "isLocked" : false
+      }
+    ]
+  },
   "AF09ED6F-1707-48FD-8720-65B998362C09" : {
     "objectMetadataList" : [
       [
@@ -60,7 +72,7 @@
       [
         "AF09ED6F-1707-48FD-8720-65B998362C09",
         "Root",
-        "Sphere_Left"
+        "Sphere_Right"
       ],
       {
         "isExpanded" : true,
@@ -69,7 +81,7 @@
       [
         "AF09ED6F-1707-48FD-8720-65B998362C09",
         "Root",
-        "Sphere_Right"
+        "Sphere_Left"
       ],
       {
         "isExpanded" : true,
@@ -81,8 +93,7 @@
     "objectMetadataList" : [
       [
         "CB766F92-EE55-4A63-9401-E7B8C009764D",
-        "Root",
-        "GridMaterial"
+        "Root"
       ],
       {
         "isExpanded" : true,
@@ -90,7 +101,8 @@
       },
       [
         "CB766F92-EE55-4A63-9401-E7B8C009764D",
-        "Root"
+        "Root",
+        "GridMaterial"
       ],
       {
         "isExpanded" : true,
@@ -118,6 +130,28 @@
         "Root",
         "GridMaterial",
         "GridMaterial"
+      ],
+      {
+        "isExpanded" : true,
+        "isLocked" : false
+      }
+    ]
+  },
+  "E9FAD291-AFC4-4F61-93DC-B379F4BB7146" : {
+    "objectMetadataList" : [
+      [
+        "E9FAD291-AFC4-4F61-93DC-B379F4BB7146",
+        "Root",
+        "tatami_export_v02",
+        "_900_bronze_hang"
+      ],
+      {
+        "isExpanded" : true,
+        "isLocked" : false
+      },
+      [
+        "E9FAD291-AFC4-4F61-93DC-B379F4BB7146",
+        "Root"
       ],
       {
         "isExpanded" : true,

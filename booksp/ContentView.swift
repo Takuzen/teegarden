@@ -1,10 +1,3 @@
-//
-//  ContentView.swift
-//  booksp
-//
-//  Created by Takuzen Toh on 7/5/23.
-//
-
 import SwiftUI
 import FirebaseAuth
 import RealityKit
@@ -16,7 +9,7 @@ import SwiftyJSON
 
 struct Book {
     let id: String
-    let volumeInfo:JSON
+    let volumeInfo: JSON
 }
 
 class GoogleBooksAPIRepository: ObservableObject {
@@ -31,49 +24,49 @@ class GoogleBooksAPIRepository: ObservableObject {
     }
     
     public func getBooks() async {
-        let data = try! await downloadData(urlString: "\(endpoint)/volumes?q=\(query)")
-        let json = JSON(data)
-        let result = await self.setVolume(json)
-        debugPrint(result.prefix(5))
-        DispatchQueue.main.async {
-            self.booksResult = result
+            let data = try! await downloadData(urlString: "\(endpoint)/volumes?q=\(query)")
+            let json = JSON(data)
+            let result = await self.setVolume(json)
+            debugPrint(result.prefix(5))
+            DispatchQueue.main.async {
+                self.booksResult = result
+            }
         }
-    }
-    
-    public func getBookById(bookId:String) async {
-        let data = try! await downloadData(urlString: "\(endpoint)/volumes/\(query)")
-        let json = JSON(data)
-        let result = await self.setVolume(json)
-        debugPrint(result.prefix(5))
-        DispatchQueue.main.async {
-            self.booksResult = result
+        
+        public func getBookById(bookId:String) async {
+            let data = try! await downloadData(urlString: "\(endpoint)/volumes/\(query)")
+            let json = JSON(data)
+            let result = await self.setVolume(json)
+            debugPrint(result.prefix(5))
+            DispatchQueue.main.async {
+                self.booksResult = result
+            }
         }
-    }
 
-    private func setVolume(_ json: JSON) async -> [Book] {
-        let items = json["items"].array!
-        var books: [Book] = []
-        for item in items {
-            let bk = Book(
-                id: item["id"].stringValue,
-                volumeInfo: item["volumeInfo"]
-//                title: item["volumeInfo"]["title"].stringValue
-//                descryption: item["volumeInfo"]["description"].stringValue,
-//                thumbnail: item["volumeInfo"]["imageLinks"]["thumbnail"].stringValue
-            )
-            books.append(bk)
+        private func setVolume(_ json: JSON) async -> [Book] {
+            let items = json["items"].array!
+            var books: [Book] = []
+            for item in items {
+                let bk = Book(
+                    id: item["id"].stringValue,
+                    volumeInfo: item["volumeInfo"]
+    //              title: item["volumeInfo"]["title"].stringValue
+    //              descryption: item["volumeInfo"]["description"].stringValue,
+    //              thumbnail: item["volumeInfo"]["imageLinks"]["thumbnail"].stringValue
+                )
+                books.append(bk)
+            }
+            return books
         }
-        return books
-    }
-    
-    final func downloadData(urlString:String) async throws -> Data {
-        guard let url = URL(string: urlString) else {
-            throw GoogleBooksAPIError.invalidURLString
+        
+        final func downloadData(urlString:String) async throws -> Data {
+            guard let url = URL(string: urlString) else {
+                throw GoogleBooksAPIError.invalidURLString
+            }
+            let (data,_) = try await URLSession.shared.data(from: url)
+            return data
         }
-        let (data,_) = try await URLSession.shared.data(from: url)
-        return data
     }
-}
 
 func url(s: String) -> String{
     var i = s
@@ -83,17 +76,22 @@ func url(s: String) -> String{
     i.insert(contentsOf: "s", at: insertIdx)
     return i
 }
-
+    
 struct ContentView: View {
-
-    @State var showImmersiveSpace = false
+    
+    @State var showImmersiveSpace_Progressive = false
+    @State private var defaultSelectionForHomeMenu: String? = "Home"
+    @State private var defaultSelectionForUserMenu: String? = "All"
+    
     @Environment(\.openImmersiveSpace) var openImmersiveSpace
     @Environment(\.dismissImmersiveSpace) var dismissImmersiveSpace
     @EnvironmentObject var viewModel: FirebaseViewModel
     
     @ObservedObject var googleBooksAPI = GoogleBooksAPIRepository()
-
-    // Define the layout for your grid
+    
+    let homeMenuItems = ["Home"]
+    let userMenuItems = ["All"]
+    
     let columns: [GridItem] = [
         GridItem(.flexible(), spacing: CGFloat(10), alignment: nil),
         GridItem(.flexible(), spacing: CGFloat(10), alignment: nil),
@@ -102,58 +100,44 @@ struct ContentView: View {
     
     var body: some View {
         NavigationSplitView {
-            if viewModel.isLoggedIn {
-                loggedInView
-            } else {
-                loggedOutView
-            }
-        } detail: {
-            if showImmersiveSpace {
-                ScrollView {
-                    // LazyVGrid for a vertical grid
-                    LazyVGrid(columns: columns, spacing: 20) {
-                        if(googleBooksAPI.booksResult.count>0){
-                            ForEach(0 ..< googleBooksAPI.booksResult.count) { index in
-                                var i = googleBooksAPI.booksResult[index].volumeInfo["imageLinks"]["thumbnail"].stringValue
-                                AsyncImage(url: URL(string: url(s:i))) { image in
-                                    image.resizable().scaledToFill()
-                                } placeholder: {
-                                    ProgressView()
-                                }
-                                .onTapGesture(count: 2) {
-                                    debugPrint("Called L125 at ContentView.swift")
-                                    debugPrint(googleBooksAPI.booksResult[index].id)
-                                    debugPrint(googleBooksAPI.booksResult[index].volumeInfo["imageLinks"]["thumbnail"])
-                                    viewModel.createFavoriteBook(
-                                        bookId: googleBooksAPI.booksResult[index].id,
-                                        thumnailUrl: googleBooksAPI.booksResult[index].volumeInfo["imageLinks"]["thumbnail"].stringValue
-                                    )
-                                }
+            VStack {
+                if showImmersiveSpace_Progressive {
+                    List(userMenuItems, id: \.self, selection: $defaultSelectionForUserMenu) { item in
+                        NavigationLink(destination: viewForUserHome(item)) {
+                            HStack {
+                                Image(systemName: "house")
+                                Text(item)
                             }
                         }
                     }
-                    .padding(.horizontal) // Add horizontal padding
+                } else {
+                    List(userMenuItems, id: \.self, selection: $defaultSelectionForUserMenu) { item in
+                        NavigationLink(destination: viewForRootHome(item)) {
+                            HStack {
+                                Image(systemName: "infinity")
+                                Text(item)
+                            }
+                        }
+                    }
                 }
+                Toggle("My Space →", isOn: $showImmersiveSpace_Progressive)
+                    .toggleStyle(.button)
+                    .frame(maxWidth: .infinity)
+                    .padding()
             }
-            else{
-                VStack {
-                    Model3D(named: "Scene", bundle: realityKitContentBundle)
-                        .padding(.bottom, 50)
-
-                    Text("Welcome to BookSP!")
-
-                    Toggle("My Space", isOn: $showImmersiveSpace)
-                        .toggleStyle(.button)
-                        .padding(.top, 50)
-                }
-                .navigationTitle("Content")
-                .padding()
+            .listStyle(SidebarListStyle())
+            .navigationTitle("Menu")
+        } detail: {
+            if showImmersiveSpace_Progressive {
+                userAllView
+            } else {
+                homeView
             }
         }
-        .onChange(of: showImmersiveSpace) { _, newValue in
+        .onChange(of: showImmersiveSpace_Progressive) { _, newValue in
             Task {
                 if newValue {
-                    await openImmersiveSpace(id: "ImmersiveSpace")
+                    await openImmersiveSpace(id: "ImmersiveSpace_Progressive")
                 } else {
                     await dismissImmersiveSpace()
                 }
@@ -161,62 +145,113 @@ struct ContentView: View {
         }
     }
     
-    private var loggedInView: some View {
-        VStack {
-            TextField("検索ボックス", text: $googleBooksAPI.query)
-                .textFieldStyle(RoundedBorderTextFieldStyle())
-                .padding()
-                .onSubmit {
-                    Task {
-                        await googleBooksAPI.getBooks()
-                    }
-                }
-            
-            Button(action: {
-                viewModel.signOut()
-                Task{
-                    await dismissImmersiveSpace()
-                    showImmersiveSpace = false
-                }
-            }) {
-                Text("Sign Out")
-            }
-
+    @ViewBuilder
+    private func viewForRootHome(_ item: String) -> some View {
+        switch item {
+        case "Home":
+            homeView
+        default:
+            EmptyView()
         }
     }
     
-    private var loggedOutView: some View {
-        VStack {
-            TextField("Email", text: $viewModel.mail)
-                .keyboardType(.emailAddress)
-                .autocapitalization(.none)
-                .padding()
-                .frame(width : 250.0, height : 100.0)
-            
-            SecureField("Password", text: $viewModel.password)
-                .padding()
-                .frame(width : 250.0, height : 100.0)
-            
-            Text(viewModel.errorMessage)
-        
-            HStack{
-                Button(action: {
-                    viewModel.signUp()
-                }) {
-                    Text("Sign Up")
+    private var homeView: some View {
+        Text("Posts in latest order")
+    }
+    
+    @ViewBuilder
+    private func viewForUserHome(_ item: String) -> some View {
+        switch item {
+        case "All":
+            userAllView
+        default:
+            EmptyView()
+        }
+    }
+    
+    private var userAllView: some View {
+        NavigationStack {
+            VStack(alignment: .leading) {
+                NavigationLink(destination: CategorySelectionView()) {
+                    HStack {
+                        Text("Add")
+                            .padding()
+                            .foregroundColor(Color.white)
+                            .cornerRadius(2)
+                        Image(systemName: "plus")
+                    }
                 }
-                
-                Button(action: {
-                    viewModel.login()
-                }) {
-                    Text("Log In")
+            }
+        }
+    }
+    
+    struct CategorySelectionView: View {
+        var body: some View {
+            VStack(alignment: .leading) {
+                NavigationLink(destination: BookSelectionView()) {
+                    Text("Books")
+                        .padding()
+                        .foregroundColor(Color.white)
+                        .cornerRadius(2)
+                }
+
+                NavigationLink(destination: Add3DModelView()) {
+                    Text("My Own 3D Model")
+                        .padding()
+                        .foregroundColor(Color.white)
+                        .cornerRadius(2)
                 }
             }
         }
     }
 
-}
+    struct BookSelectionView: View {
+        var body: some View {
+            Text("Book Selection")
+        }
+    }
 
-//#Preview {
-//    ContentView()
-//}
+    struct Add3DModelView: View {
+        var body: some View {
+            Text("Add 3D Model")
+        }
+    }
+}
+        
+        /*
+         private var logInView: some View {
+         VStack {
+         TextField("Email", text: $viewModel.mail)
+         .keyboardType(.emailAddress)
+         .autocapitalization(.none)
+         .padding()
+         .frame(width: 250.0, height: 100.0)
+         
+         SecureField("Password", text: $viewModel.password)
+         .padding()
+         .frame(width: 250.0, height: 100.0)
+         
+         Text(viewModel.errorMessage)
+         
+         VStack {
+         Button(action: {
+         viewModel.login()
+         }) {
+         Text("Authenticate →")
+         }
+         
+         Text("Create an account?")
+         .foregroundColor(.black)
+         .onTapGesture {
+         viewModel.signUp()
+         }
+         }
+         }
+         }
+*/
+
+/*
+ #Preview {
+ ContentView()
+ }
+ */
