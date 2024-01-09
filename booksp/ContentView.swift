@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 import FirebaseAuth
 import RealityKit
 import RealityKitContent
@@ -212,8 +213,24 @@ struct ContentView: View {
     }
 
     struct Add3DModelView: View {
+        @State private var isPickerPresented = false
         var body: some View {
-            Text("Add 3D Model")
+                Button("Upload 3D Model") {
+                    isPickerPresented = true
+                }
+                .sheet(isPresented: $isPickerPresented) {
+                    DocumentPicker()
+                }
+            }
+    }
+    
+    struct DocumentPicker: UIViewControllerRepresentable {
+        func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
+            let picker = UIDocumentPickerViewController(forOpeningContentTypes: [UTType.usdz, UTType(filenameExtension: "gltf")!, UTType(filenameExtension: "glb")!])
+            return picker
+        }
+
+        func updateUIViewController(_ uiViewController: UIDocumentPickerViewController, context: Context) {
         }
     }
 }
