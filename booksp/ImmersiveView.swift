@@ -5,17 +5,11 @@
 //  Created by Takuzen Toh on 7/5/23.
 //
 
-// - Image Click => Amazon
-// - Image Show Den
-// - Image Moving
-
 import SwiftUI
 import RealityKit
 import RealityKitContent
 import Observation
 import Foundation
-
-/*
 
 func getImageByUrl(url: String) -> UIImage{
     let url = URL(string: url)
@@ -42,7 +36,7 @@ class ImageViewModel {
     private let planeSize = CGSize(width: 0.32, height: 0.90)
     private let maxPlaneSize = CGSize(width: 3.0, height: 2.0)
     private var contentEntity = Entity()
-//    private var contentEntity = AnchorEntity(.plane(.horizontal, classification: .any, minimumBounds: [1,1]))
+    // private var contentEntity = AnchorEntity(.plane(.horizontal, classification: .any, minimumBounds: [1,1]))
     private var images: [MaterialParameters.Texture] = []
 
     //https://books.google.com/books/content?id=uWhmDwAAQBAJ&printsec=frontcover&img=1
@@ -72,13 +66,13 @@ class ImageViewModel {
         if !contentEntity.children.isEmpty {
             contentEntity.children.removeAll()
         }
-//        let boardPlane = ModelEntity(
-//            mesh: .generatePlane(width: 0, height: 0),
-//            materials: [SimpleMaterial(color: .clear, isMetallic: false)]
-//        )
-//        boardPlane.position = SIMD3<Float>(x: 0, y: 2, z: -0.5 - 0.1 * Float(1))
-//        contentEntity.addChild(boardPlane)
-//        addChildEntities(boardPlane: boardPlane)
+        let boardPlane = ModelEntity(
+            mesh: .generatePlane(width: 0, height: 0),
+            materials: [SimpleMaterial(color: .clear, isMetallic: false)]
+        )
+        boardPlane.position = SIMD3<Float>(x: 0, y: 2, z: -0.5 - 0.1 * Float(1))
+        contentEntity.addChild(boardPlane)
+        addChildEntities(boardPlane: boardPlane)
         contentEntity.position = SIMD3<Float>(x: 0, y: 2, z: -0.5 - 0.1 * Float(1))
         var i: Int = 0
         for image in images.prefix(30) {
@@ -143,11 +137,10 @@ class ImageViewModel {
         return entity
     }
 }
-*/
 
 struct ImmersiveView: View {
-    
-    //@State var model = ImageViewModel()
+    @State var model = ImageViewModel()
+    @EnvironmentObject var feedModel: FeedModel
     @EnvironmentObject var viewModel: FirebaseViewModel
     @Environment(\.openWindow) var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
@@ -171,16 +164,16 @@ struct ImmersiveView: View {
             
             content.add(rootEntity)
         }
+        .onAppear {
+            viewModel.getFavoriteBooks()
+        }
+        .gesture(tap)
+        .gesture(dragGesture)
     }
-/*            debugPrint("called")
-        } update: { content in
-            debugPrint("update is called")
-            debugPrint(content.entities.count)
-            debugPrint(viewModel.favoriteBooks.map{
-                $0.thumnailUrl
-            })
-//            content.remove(content.entities[2])
-//            content.add(model.anchorEntity)
+    
+/*
+            content.remove(content.entities[2])
+            content.add(model.anchorEntity)
             content.add(
                 model.setupContentEntity(
                     urls:viewModel.favoriteBooks.map{
@@ -188,12 +181,7 @@ struct ImmersiveView: View {
                     }
                 )
             )
-        }.onAppear{
-            viewModel.getFavoriteBooks()
-        }
-        .gesture(tap)
-        .gesture(dragGesture)
-    }
+*/
     
     var dragGesture: some Gesture {
         DragGesture()
@@ -216,7 +204,6 @@ struct ImmersiveView: View {
                 openWindow(id: "webview")
             }
     }
-*/
 }
 
 //#Preview {

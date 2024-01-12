@@ -2,15 +2,17 @@ import SwiftUI
 import UniformTypeIdentifiers
 import FirebaseAuth
 import RealityKit
-import RealityKitContent
 
 import Observation
 import Foundation
 import SwiftyJSON
 
-struct Book {
+struct Book: Identifiable {
     let id: String
     let volumeInfo: JSON
+    let thumnailUrl: String
+    let title: String
+    let description: String
 }
 
 struct Post: Identifiable {
@@ -64,16 +66,15 @@ class GoogleBooksAPIRepository: ObservableObject {
             for item in items {
                 let bk = Book(
                     id: item["id"].stringValue,
-                    volumeInfo: item["volumeInfo"]
-    //              title: item["volumeInfo"]["title"].stringValue
-    //              descryption: item["volumeInfo"]["description"].stringValue,
-    //              thumbnail: item["volumeInfo"]["imageLinks"]["thumbnail"].stringValue
+                    volumeInfo: item["volumeInfo"],
+                    thumnailUrl: item["volumeInfo"]["imageLinks"]["thumbnail"].stringValue,
+                    title: item["volumeInfo"]["title"].stringValue,
+                    description: item["volumeInfo"]["description"].stringValue
                 )
-                books.append(bk)
             }
             return books
         }
-        
+
         final func downloadData(urlString:String) async throws -> Data {
             guard let url = URL(string: urlString) else {
                 throw GoogleBooksAPIError.invalidURLString
@@ -191,7 +192,7 @@ struct homeView: View {
                                             model
                                                 .resizable()
                                                 .aspectRatio(contentMode: .fit)
-                                                .frame(width: 200, height: 200)
+                                                .frame(width: 100, height: 100)
                                         } placeholder: {
                                             ProgressView()
                                         }
@@ -233,7 +234,7 @@ private var userAllView: some View {
 struct CategorySelectionView: View {
     var body: some View {
         VStack(alignment: .leading) {
-            NavigationLink(destination: BookSelectionView()) {
+            NavigationLink(destination: BookSearchView(googleBooksAPI: GoogleBooksAPIRepository())) {
                 Text("Books")
                     .padding()
                     .foregroundColor(Color.white)
@@ -250,9 +251,18 @@ struct CategorySelectionView: View {
     }
 }
     
-struct BookSelectionView: View {
+struct BookSearchView: View {
+    @ObservedObject var googleBooksAPI: GoogleBooksAPIRepository
+    @EnvironmentObject var viewModel: FirebaseViewModel
+    
     var body: some View {
-        Text("Book Selection")
+        TextField("Search for books", text: $googleBooksAPI.query, onCommit: {
+            Task {
+                await googleBooksAPI.getBooks()
+            }
+        })
+        .textFieldStyle(RoundedBorderTextFieldStyle())
+        .padding()
     }
 }
     
@@ -262,6 +272,7 @@ struct Add3DModelView: View {
     @State private var captionText: String = ""
     @State private var showAlert = false
     @State private var alertMessage = ""
+    @State private var isLoadingModel = false
     @EnvironmentObject var feedModel: FeedModel
     
     private let sample_3dmodelurl = URL(string: "https://developer.apple.com/augmented-reality/quick-look/models/teapot/teapot.usdz")!
@@ -270,34 +281,50 @@ struct Add3DModelView: View {
         NavigationStack {
             VStack {
                 Button("Choose 3D Model") {
-                                    isPickerPresented = true
-                                }
-                                .fileImporter(
-                                    isPresented: $isPickerPresented,
-                                    allowedContentTypes: [UTType.usdz],
-                                    allowsMultipleSelection: false
-                                ) { result in
-                                    switch result {
-                                    case .success(let urls):
-                                        self.selectedModelURL = urls.first
-                                    case .failure(let error):
-                                        print("Error selecting file: \(error.localizedDescription)")
+                    isPickerPresented = true
+                    print("File picker presented")
+                }
+                .fileImporter(
+                    isPresented: $isPickerPresented,
+                    allowedContentTypes: [UTType.usdz],
+                    allowsMultipleSelection: false
+                ) { result in
+                    print("File picker result received")
+                    switch result {
+                    case .success(let urls):
+                        print("Model URL selected: \(String(describing: urls.first))")
+                        isLoadingModel = true
+                        self.selectedModelURL = urls.first
+                    case .failure(let error):
+                        print("Error selecting file: \(error.localizedDescription)")
+                        alertMessage = "Error selecting file: \(error.localizedDescription)"
+                        showAlert = true
+                    }
+                }
+
+                if let modelURL = selectedModelURL {
+                    Model3D(url: modelURL) { model in
+                        model
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 200, height: 200)
+                    } placeholder: {
+                        if isLoadingModel {
+                            ProgressView()
+                                .onAppear {
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 5) { // 5 seconds timeout
+                                        if isLoadingModel {
+                                            alertMessage = "Loading timeout. Please try a different model."
+                                            showAlert = true
+                                            isLoadingModel = false
+                                        }
                                     }
                                 }
-                                
-                                if let url = selectedModelURL {
-                                    Model3D(url: url) { model in
-                                        model
-                                            .resizable()
-                                            .aspectRatio(contentMode: .fit)
-                                            .frame(width: 200, height: 200)
-                                    } placeholder: {
-                                        ProgressView()
-                                    }
-                                } else {
-                                    Text("No model selected")
-                                    .padding()
-                                }
+                        }
+                    }
+                } else {
+                    Text("No model selected").padding()
+                }
                 
                 TextField("Write a caption...", text: $captionText)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -308,15 +335,21 @@ struct Add3DModelView: View {
                 HStack {
                     Spacer()
                     Button("Post →") {
-                        let newPost = Post(modelURL: sample_3dmodelurl, caption: captionText)
-                        feedModel.addPost(newPost)
-                        alertMessage = "Your post has been successfully added!"
-                        showAlert = true
-                        captionText = ""
+                        if let modelURL = selectedModelURL {
+                            let newPost = Post(modelURL: modelURL, caption: captionText)
+                            feedModel.addPost(newPost)
+                            alertMessage = "Your post has been successfully added!"
+                            showAlert = true
+                            captionText = ""
+                            selectedModelURL = nil
+                        } else {
+                            alertMessage = "Please select a model first"
+                            showAlert = true
+                        }
                     }
                     .padding()
                     .alert(isPresented: $showAlert) {
-                        Alert(title: Text("Post Successful"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
+                        Alert(title: Text("Notification"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
                     }
                 }
             }

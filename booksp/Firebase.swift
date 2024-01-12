@@ -8,6 +8,7 @@
 import Firebase
 import FirebaseAuth
 import FirebaseFirestore
+import SwiftyJSON
 
 class FirebaseViewModel: ObservableObject {
     static let shared: FirebaseViewModel = .init()
@@ -16,13 +17,8 @@ class FirebaseViewModel: ObservableObject {
     @Published var mail: String = ""
     @Published var password: String = ""
     @Published var errorMessage: String = ""
-    @Published var favoriteBooks: [Book] = [] // Add this line
+    @Published var favoriteBooks: [Book] = []
     
-    struct Book: Identifiable {
-        let id: String
-        let thumnailUrl: String
-    }
-
     // Sign up function
     func signUp() {
         Auth.auth().createUser(withEmail: mail, password: password) { authResult, error in
@@ -90,7 +86,13 @@ class FirebaseViewModel: ObservableObject {
                     if let thumnailUrl = document.get("thumbnailUrl") as? String {
                         debugPrint("url is ")
                         debugPrint(thumnailUrl)
-                        return Book(id: document.documentID, thumnailUrl:thumnailUrl)
+                        return Book(
+                            id: document.documentID,
+                            volumeInfo: JSON.null, // Assuming JSON.null is a valid placeholder
+                            thumnailUrl: thumnailUrl,
+                            title: "Default Title",
+                            description: "Default Description"
+                        )
                     } else {
                         return nil
                     }
