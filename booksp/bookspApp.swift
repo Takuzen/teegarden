@@ -25,11 +25,18 @@ struct bookspApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(FirebaseViewModel.shared)
+                .environmentObject(FeedModel())
         }
         
         WindowGroup(id: "webview") {
             WebViewWindow()
         }.defaultSize(CGSize(width: 1920, height: 1080))
+        
+        WindowGroup(id: "CubeModelWindow") {
+            CubeModelView()
+                }
+                .windowStyle(.volumetric)
+                .defaultSize(width: 0.6, height: 0.6, depth: 0.6, in: .meters)
         
         ImmersiveSpace(id: "ImmersiveSpace_Progressive") {
             ImmersiveView()
