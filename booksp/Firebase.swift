@@ -8,6 +8,7 @@
 import Firebase
 import FirebaseAuth
 import FirebaseFirestore
+import FirebaseStorage
 import SwiftyJSON
 
 class FirebaseViewModel: ObservableObject {
@@ -112,6 +113,29 @@ class FirebaseViewModel: ObservableObject {
             } else {
                 self.errorMessage = "Book deleted successfully!"
                 self.getFavoriteBooks()
+            }
+        }
+    }
+    
+    func uploadModel(_ url: URL, completion: @escaping (Result<URL, Error>) -> Void) {
+        guard let user = Auth.auth().currentUser else {
+            completion(.failure(NSError(domain: "User not authenticated", code: 401, userInfo: nil)))
+            return
+        }
+        
+        let storageRef = Storage.storage().reference().child("models").child("\(user.uid)/\(UUID().uuidString).usdz")
+        
+        let uploadTask = storageRef.putFile(from: url, metadata: nil) { metadata, error in
+            if let error = error {
+                completion(.failure(error))
+            } else {
+                storageRef.downloadURL { url, error in
+                    if let url = url {
+                        completion(.success(url))
+                    } else if let error = error {
+                        completion(.failure(error))
+                    }
+                }
             }
         }
     }

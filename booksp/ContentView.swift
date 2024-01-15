@@ -6,6 +6,78 @@ import RealityKit
 import Observation
 import Foundation
 import SwiftyJSON
+    
+struct ContentView: View {
+    
+    @State var showImmersiveSpace_Progressive = false
+    @State private var defaultSelectionForHomeMenu: String? = "Home"
+    @State private var defaultSelectionForUserMenu: String? = "All"
+    
+    @StateObject var feedModel = FeedModel()
+    
+    @Environment(\.openImmersiveSpace) var openImmersiveSpace
+    @Environment(\.dismissImmersiveSpace) var dismissImmersiveSpace
+    @EnvironmentObject var viewModel: FirebaseViewModel
+    
+    @ObservedObject var googleBooksAPI = GoogleBooksAPIRepository()
+    
+    let homeMenuItems = ["Home"]
+    let userMenuItems = ["All"]
+    
+    let columns: [GridItem] = [
+        GridItem(.flexible(), spacing: CGFloat(10), alignment: nil),
+        GridItem(.flexible(), spacing: CGFloat(10), alignment: nil),
+        GridItem(.flexible(), spacing: CGFloat(10), alignment: nil),
+    ]
+    
+    var body: some View {
+        NavigationSplitView {
+            VStack {
+                if showImmersiveSpace_Progressive {
+                    List(userMenuItems, id: \.self, selection: $defaultSelectionForUserMenu) { item in
+                        NavigationLink(destination: userAllView) {
+                            HStack {
+                                Image(systemName: "house")
+                                Text(item)
+                            }
+                        }
+                    }
+                } else {
+                    List(userMenuItems, id: \.self, selection: $defaultSelectionForUserMenu) { item in
+                        NavigationLink(destination: homeView().environmentObject(feedModel)) {
+                            HStack {
+                                Image(systemName: "infinity")
+                                Text(item)
+                            }
+                        }
+                    }
+                }
+                Toggle("My Space →", isOn: $showImmersiveSpace_Progressive)
+                    .toggleStyle(.button)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+            }
+            .listStyle(SidebarListStyle())
+            .navigationTitle("Menu")
+        } detail: {
+            if showImmersiveSpace_Progressive {
+                userAllView
+            } else {
+                homeView().environmentObject(feedModel)
+            }
+        }
+        .environmentObject(feedModel)
+        .onChange(of: showImmersiveSpace_Progressive) { _, newValue in
+            Task {
+                if newValue {
+                    await openImmersiveSpace(id: "ImmersiveSpace_Progressive")
+                } else {
+                    await dismissImmersiveSpace()
+                }
+            }
+        }
+    }
+}
 
 struct Book: Identifiable {
     let id: String
@@ -92,76 +164,23 @@ func url(s: String) -> String{
     i.insert(contentsOf: "s", at: insertIdx)
     return i
 }
-    
-struct ContentView: View {
-    
-    @State var showImmersiveSpace_Progressive = false
-    @State private var defaultSelectionForHomeMenu: String? = "Home"
-    @State private var defaultSelectionForUserMenu: String? = "All"
-    
-    @StateObject var feedModel = FeedModel()
-    
-    @Environment(\.openImmersiveSpace) var openImmersiveSpace
-    @Environment(\.dismissImmersiveSpace) var dismissImmersiveSpace
-    @EnvironmentObject var viewModel: FirebaseViewModel
-    
-    @ObservedObject var googleBooksAPI = GoogleBooksAPIRepository()
-    
-    let homeMenuItems = ["Home"]
-    let userMenuItems = ["All"]
-    
-    let columns: [GridItem] = [
-        GridItem(.flexible(), spacing: CGFloat(10), alignment: nil),
-        GridItem(.flexible(), spacing: CGFloat(10), alignment: nil),
-        GridItem(.flexible(), spacing: CGFloat(10), alignment: nil),
-    ]
-    
+
+struct CubeToggle: View {
+    @Environment(\.openWindow) private var openWindow
+    @Environment(\.dismissWindow) private var dismissWindow
+
+    @State private var isShowingCube: Bool = false
+
     var body: some View {
-        NavigationSplitView {
-            VStack {
-                if showImmersiveSpace_Progressive {
-                    List(userMenuItems, id: \.self, selection: $defaultSelectionForUserMenu) { item in
-                        NavigationLink(destination: userAllView) {
-                            HStack {
-                                Image(systemName: "house")
-                                Text(item)
-                            }
-                        }
-                    }
-                } else {
-                    List(userMenuItems, id: \.self, selection: $defaultSelectionForUserMenu) { item in
-                        NavigationLink(destination: homeView().environmentObject(feedModel)) {
-                            HStack {
-                                Image(systemName: "infinity")
-                                Text(item)
-                            }
-                        }
-                    }
-                }
-                Toggle("My Space →", isOn: $showImmersiveSpace_Progressive)
-                    .toggleStyle(.button)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-            }
-            .listStyle(SidebarListStyle())
-            .navigationTitle("Menu")
-        } detail: {
-            if showImmersiveSpace_Progressive {
-                userAllView
-            } else {
-                homeView().environmentObject(feedModel)
-            }
-        }
-        .environmentObject(feedModel)
-        .onChange(of: showImmersiveSpace_Progressive) { _, newValue in
-            Task {
+        Toggle("View", isOn: $isShowingCube)
+            .onChange(of: isShowingCube) { newValue in
                 if newValue {
-                    await openImmersiveSpace(id: "ImmersiveSpace_Progressive")
+                    openWindow(id: "CubeModelWindow")
                 } else {
-                    await dismissImmersiveSpace()
+                    dismissWindow(id: "CubeModelWindow")
                 }
             }
-        }
+            .toggleStyle(.button)
     }
 }
 
@@ -184,6 +203,7 @@ struct homeView: View {
     @EnvironmentObject var feedModel: FeedModel
 
     var body: some View {
+        CubeToggle()
         ScrollView {
             ForEach(feedModel.posts, id: \.id) { post in
                 HStack {
@@ -265,7 +285,7 @@ struct BookSearchView: View {
         .padding()
     }
 }
-    
+
 struct Add3DModelView: View {
     @State private var isPickerPresented = false
     @State private var selectedModelURL: URL? = nil
@@ -295,6 +315,22 @@ struct Add3DModelView: View {
                         print("Model URL selected: \(String(describing: urls.first))")
                         isLoadingModel = true
                         self.selectedModelURL = urls.first
+                        
+                        // Upload the selected model to Firebase Storage
+                        if let modelURL = selectedModelURL {
+                            FirebaseViewModel.shared.uploadModel(modelURL) { result in
+                                isLoadingModel = false
+                                switch result {
+                                case .success(let url):
+                                    self.selectedModelURL = url
+                                    // Now you have the Firebase Storage URL for the uploaded model
+                                    // Use it as needed, for example, pass it to the 'modelURL' constant
+                                case .failure(let error):
+                                    alertMessage = "Error uploading model: \(error.localizedDescription)"
+                                    showAlert = true
+                                }
+                            }
+                        }
                     case .failure(let error):
                         print("Error selecting file: \(error.localizedDescription)")
                         alertMessage = "Error selecting file: \(error.localizedDescription)"
@@ -312,8 +348,7 @@ struct Add3DModelView: View {
                         if isLoadingModel {
                             ProgressView()
                                 .onAppear {
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 5) { // 5 seconds timeout
-                                        if isLoadingModel {
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 5) {                                        if isLoadingModel {
                                             alertMessage = "Loading timeout. Please try a different model."
                                             showAlert = true
                                             isLoadingModel = false
@@ -357,6 +392,7 @@ struct Add3DModelView: View {
         }
     }
 }
+
 
 /*
  private var logInView: some View {

@@ -11,6 +11,47 @@
       }
     ]
   },
+  "3C31910B-E118-4170-A90B-64C97DD75F38" : {
+    "objectMetadataList" : [
+      [
+        "3C31910B-E118-4170-A90B-64C97DD75F38",
+        "Root"
+      ],
+      {
+        "isExpanded" : true,
+        "isLocked" : false
+      },
+      [
+        "3C31910B-E118-4170-A90B-64C97DD75F38",
+        "Root",
+        "solar_panels"
+      ],
+      {
+        "isExpanded" : true,
+        "isLocked" : false
+      },
+      [
+        "3C31910B-E118-4170-A90B-64C97DD75F38",
+        "Root",
+        "solar_panels",
+        "solar_panels_stylized_geom"
+      ],
+      {
+        "isExpanded" : true,
+        "isLocked" : false
+      },
+      [
+        "3C31910B-E118-4170-A90B-64C97DD75F38",
+        "Root",
+        "solar_panels",
+        "Looks"
+      ],
+      {
+        "isExpanded" : true,
+        "isLocked" : false
+      }
+    ]
+  },
   "65F6F990-A780-4474-B78B-572E0E4E273D" : {
     "objectMetadataList" : [
       [
@@ -47,6 +88,27 @@
       }
     ]
   },
+  "69741BF1-9862-4A03-A30C-13257F0AC538" : {
+    "objectMetadataList" : [
+      [
+        "69741BF1-9862-4A03-A30C-13257F0AC538",
+        "Root"
+      ],
+      {
+        "isExpanded" : true,
+        "isLocked" : false
+      },
+      [
+        "69741BF1-9862-4A03-A30C-13257F0AC538",
+        "Root",
+        "solar_panels"
+      ],
+      {
+        "isExpanded" : true,
+        "isLocked" : false
+      }
+    ]
+  },
   "97904042-50B9-4C86-A77E-5A6D9D44338C" : {
     "objectMetadataList" : [
       [
@@ -63,6 +125,15 @@
     "objectMetadataList" : [
       [
         "AF09ED6F-1707-48FD-8720-65B998362C09",
+        "Root",
+        "Sphere_Left"
+      ],
+      {
+        "isExpanded" : true,
+        "isLocked" : false
+      },
+      [
+        "AF09ED6F-1707-48FD-8720-65B998362C09",
         "Root"
       ],
       {
@@ -73,15 +144,6 @@
         "AF09ED6F-1707-48FD-8720-65B998362C09",
         "Root",
         "Sphere_Right"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "AF09ED6F-1707-48FD-8720-65B998362C09",
-        "Root",
-        "Sphere_Left"
       ],
       {
         "isExpanded" : true,

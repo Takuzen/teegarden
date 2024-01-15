@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		CA3A01B22B4D297800ECEE5A /* CubeModelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA3A01B12B4D297800ECEE5A /* CubeModelView.swift */; };
+		CA3A01B42B522DBF00ECEE5A /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = CA3A01B32B522DBF00ECEE5A /* FirebaseStorage */; };
+		CA3A01EC2B552B1A00ECEE5A /* ViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA3A01EB2B552B1A00ECEE5A /* ViewModel.swift */; };
 		CAE2E3932A55904B0035F947 /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = CAE2E3922A55904B0035F947 /* RealityKitContent */; };
 		CAE2E3952A55904B0035F947 /* bookspApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAE2E3942A55904B0035F947 /* bookspApp.swift */; };
 		CAE2E3972A55904B0035F947 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAE2E3962A55904B0035F947 /* ContentView.swift */; };
@@ -39,6 +41,7 @@
 /* Begin PBXFileReference section */
 		CA3A01B02B4D20C400ECEE5A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		CA3A01B12B4D297800ECEE5A /* CubeModelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CubeModelView.swift; sourceTree = "<group>"; };
+		CA3A01EB2B552B1A00ECEE5A /* ViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewModel.swift; sourceTree = "<group>"; };
 		CA73CF8E2AB89F3300FDACBD /* bookspDebug.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = bookspDebug.entitlements; sourceTree = "<group>"; };
 		CAE2E38D2A55904B0035F947 /* booksp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = booksp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CAE2E3912A55904B0035F947 /* RealityKitContent */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = RealityKitContent; sourceTree = "<group>"; };
@@ -65,6 +68,7 @@
 				CAE2E3932A55904B0035F947 /* RealityKitContent in Frameworks */,
 				E99874732A75020600960EF4 /* FirebaseAuth in Frameworks */,
 				E9C9D6EF2AC8641600DA35EB /* SwiftyJSON in Frameworks */,
+				CA3A01B42B522DBF00ECEE5A /* FirebaseStorage in Frameworks */,
 				E99874812A751D7100960EF4 /* FirebaseFirestore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -116,6 +120,7 @@
 				CA73CF8E2AB89F3300FDACBD /* bookspDebug.entitlements */,
 				E90D4C532AF600E80038AE6E /* WebView.swift */,
 				E97CFA182B011DF800424D6D /* PaApi.swift */,
+				CA3A01EB2B552B1A00ECEE5A /* ViewModel.swift */,
 			);
 			path = booksp;
 			sourceTree = "<group>";
@@ -172,6 +177,7 @@
 				E99874722A75020600960EF4 /* FirebaseAuth */,
 				E99874802A751D7100960EF4 /* FirebaseFirestore */,
 				E9C9D6EE2AC8641600DA35EB /* SwiftyJSON */,
+				CA3A01B32B522DBF00ECEE5A /* FirebaseStorage */,
 			);
 			productName = booksp;
 			productReference = CAE2E38D2A55904B0035F947 /* booksp.app */;
@@ -270,6 +276,7 @@
 				CAE2E3972A55904B0035F947 /* ContentView.swift in Sources */,
 				CAE2E3952A55904B0035F947 /* bookspApp.swift in Sources */,
 				CAE2E3992A55904B0035F947 /* ImmersiveView.swift in Sources */,
+				CA3A01EC2B552B1A00ECEE5A /* ViewModel.swift in Sources */,
 				E97CFA192B011DF800424D6D /* PaApi.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -559,6 +566,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		CA3A01B32B522DBF00ECEE5A /* FirebaseStorage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E998746D2A75020600960EF4 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseStorage;
+		};
 		CAE2E3922A55904B0035F947 /* RealityKitContent */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = RealityKitContent;
