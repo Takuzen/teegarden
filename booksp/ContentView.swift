@@ -1,4 +1,6 @@
 import SwiftUI
+import UIKit
+import QuickLook
 import UniformTypeIdentifiers
 import FirebaseAuth
 import RealityKit
@@ -58,7 +60,7 @@ struct ContentView: View {
                     .padding()
             }
             .listStyle(SidebarListStyle())
-            .navigationTitle("Menu")
+            .navigationTitle("Teegarden")
         } detail: {
             if showImmersiveSpace_Progressive {
                 userAllView
@@ -203,11 +205,14 @@ struct homeView: View {
     @EnvironmentObject var feedModel: FeedModel
 
     var body: some View {
-        CubeToggle()
-        ScrollView {
+        ScrollView(.horizontal, showsIndicators: true) {
             ForEach(feedModel.posts, id: \.id) { post in
                 HStack {
-                    Text(post.caption)
+                    VStack {
+                        Text("profile-thumbnail")
+                        Text("username")
+                        Text(post.caption)
+                    }
                     Model3D(url: post.modelURL) { model in
                                             model
                                                 .resizable()
@@ -218,6 +223,7 @@ struct homeView: View {
                                         }
                                         .padding()
                 }
+                //.frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
                 .padding()
             }
         }
@@ -286,6 +292,40 @@ struct BookSearchView: View {
     }
 }
 
+struct USDZQLPreview: UIViewControllerRepresentable {
+    let url: URL
+
+    func makeUIViewController(context: Context) -> QLPreviewController {
+        let previewController = QLPreviewController()
+        previewController.dataSource = context.coordinator
+        return previewController
+    }
+
+    func updateUIViewController(_ uiViewController: QLPreviewController, context: Context) {
+        // No need to update
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(url: url)
+    }
+
+    class Coordinator: NSObject, QLPreviewControllerDataSource {
+        let url: URL
+
+        init(url: URL) {
+            self.url = url
+        }
+
+        func numberOfPreviewItems(in controller: QLPreviewController) -> Int {
+            return 1
+        }
+
+        func previewController(_ controller: QLPreviewController, previewItemAt index: Int) -> QLPreviewItem {
+                return Bundle.main.url(forResource: "teapot", withExtension: ".usdz")! as QLPreviewItem
+        }
+    }
+}
+
 struct Add3DModelView: View {
     @State private var isPickerPresented = false
     @State private var selectedModelURL: URL? = nil
@@ -293,9 +333,10 @@ struct Add3DModelView: View {
     @State private var showAlert = false
     @State private var alertMessage = ""
     @State private var isLoadingModel = false
+    @State private var isPreviewing = false
     @EnvironmentObject var feedModel: FeedModel
     
-    private let sample_3dmodelurl = URL(string: "https://developer.apple.com/augmented-reality/quick-look/models/teapot/teapot.usdz")!
+    let sample_3dmodelurl = URL(string: "https://developer.apple.com/augmented-reality/quick-look/models/teapot/teapot.usdz")!
     
     var body: some View {
         NavigationStack {
@@ -337,7 +378,24 @@ struct Add3DModelView: View {
                         showAlert = true
                     }
                 }
-
+                
+                Button("Preview 3D Model") {
+                    isPreviewing = true
+                }
+                .sheet(isPresented: $isPreviewing) {
+                    USDZQLPreview(url: sample_3dmodelurl)
+                }
+/*
+                if let modelURL = selectedModelURL {
+                                    Button("Preview 3D Model") {
+                                        isPreviewing = true
+                                    }
+                                    .sheet(isPresented: $isPreviewing) {
+                                        USDZQLPreview(url: modelURL)
+                                    }
+                                }
+*/
+/*
                 if let modelURL = selectedModelURL {
                     Model3D(url: modelURL) { model in
                         model
@@ -360,7 +418,7 @@ struct Add3DModelView: View {
                 } else {
                     Text("No model selected").padding()
                 }
-                
+*/
                 TextField("Write a caption...", text: $captionText)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .padding()
@@ -370,6 +428,15 @@ struct Add3DModelView: View {
                 HStack {
                     Spacer()
                     Button("Post →") {
+                        
+                        let newPost = Post(modelURL: sample_3dmodelurl, caption: captionText)
+                        feedModel.addPost(newPost)
+                        alertMessage = "Your post has been successfully added!"
+                        showAlert = true
+                        captionText = ""
+                        selectedModelURL = nil
+                        
+                        /*
                         if let modelURL = selectedModelURL {
                             let newPost = Post(modelURL: modelURL, caption: captionText)
                             feedModel.addPost(newPost)
@@ -385,6 +452,8 @@ struct Add3DModelView: View {
                     .padding()
                     .alert(isPresented: $showAlert) {
                         Alert(title: Text("Notification"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
+                         */
+                        
                     }
                 }
             }
