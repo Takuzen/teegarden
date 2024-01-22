@@ -18,15 +18,16 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 
 @main
 struct bookspApp: App {
-    @State private var model = ViewModel()
-    
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
+    
+    @State private var model = ViewModel()
     
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environmentObject(FirebaseViewModel.shared)
                 .environmentObject(FeedModel())
+                .environment(model)
         }
         
         WindowGroup(id: "webview") {
@@ -35,7 +36,6 @@ struct bookspApp: App {
         
         WindowGroup(id: "CubeModelWindow") {
             CubeModelView()
-                .environmentObject(model)
         }
         .windowStyle(.volumetric)
         .defaultSize(width: 0.6, height: 0.6, depth: 0.6, in: .meters)

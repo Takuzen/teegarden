@@ -118,15 +118,15 @@
 				CA3A01B12B4D297800ECEE5A /* CubeModelView.swift */,
 				E998747C2A75174600960EF4 /* Firebase.swift */,
 				CA3A01ED2B5780E800ECEE5A /* TestQL.swift */,
+				E90D4C532AF600E80038AE6E /* WebView.swift */,
+				E97CFA182B011DF800424D6D /* PaApi.swift */,
+				CA3A01EB2B552B1A00ECEE5A /* ViewModel.swift */,
 				CA3A01EF2B578E1000ECEE5A /* teapot.usdz */,
 				CAE2E39A2A55904B0035F947 /* ImageBasedLight.exr */,
 				CAE2E39C2A55904D0035F947 /* Assets.xcassets */,
 				CAE2E39E2A55904D0035F947 /* Preview Content */,
 				CAEB54FD2A7FE35900C172E9 /* .gitignore */,
 				CA73CF8E2AB89F3300FDACBD /* bookspDebug.entitlements */,
-				E90D4C532AF600E80038AE6E /* WebView.swift */,
-				E97CFA182B011DF800424D6D /* PaApi.swift */,
-				CA3A01EB2B552B1A00ECEE5A /* ViewModel.swift */,
 			);
 			path = booksp;
 			sourceTree = "<group>";

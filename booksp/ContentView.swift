@@ -11,15 +11,14 @@ import SwiftyJSON
     
 struct ContentView: View {
     
+    @Environment(ViewModel.self) private var model
+    
     @State var showImmersiveSpace_Progressive = false
     @State private var defaultSelectionForHomeMenu: String? = "Home"
     @State private var defaultSelectionForUserMenu: String? = "All"
     
-    @StateObject var feedModel = FeedModel()
-    
     @Environment(\.openImmersiveSpace) var openImmersiveSpace
     @Environment(\.dismissImmersiveSpace) var dismissImmersiveSpace
-    @EnvironmentObject var viewModel: FirebaseViewModel
     
     @ObservedObject var googleBooksAPI = GoogleBooksAPIRepository()
     
@@ -33,6 +32,18 @@ struct ContentView: View {
     ]
     
     var body: some View {
+        
+        @Bindable var model = model
+        
+        TabView(selection: $model.selectedType) {
+                    ForEach(ViewModel.SelectionType.allCases) { selectionType in
+                        homeView()
+                            .tag(selectionType)
+                            .tabItem {
+                                Label(selectionType.title, systemImage: selectionType.imageName)
+                            }
+                    }
+                }
         NavigationSplitView {
             VStack {
                 if showImmersiveSpace_Progressive {
@@ -46,7 +57,7 @@ struct ContentView: View {
                     }
                 } else {
                     List(userMenuItems, id: \.self, selection: $defaultSelectionForUserMenu) { item in
-                        NavigationLink(destination: homeView().environmentObject(feedModel)) {
+                        NavigationLink(destination: homeView()) {
                             HStack {
                                 Image(systemName: "infinity")
                                 Text(item)
@@ -65,10 +76,9 @@ struct ContentView: View {
             if showImmersiveSpace_Progressive {
                 userAllView
             } else {
-                homeView().environmentObject(feedModel)
+                homeView()
             }
         }
-        .environmentObject(feedModel)
         .onChange(of: showImmersiveSpace_Progressive) { _, newValue in
             Task {
                 if newValue {
@@ -203,7 +213,7 @@ struct BottomView: View {
 
 struct homeView: View {
     @EnvironmentObject var feedModel: FeedModel
-
+    
     var body: some View {
         ScrollView(.horizontal, showsIndicators: true) {
             ForEach(feedModel.posts, id: \.id) { post in
