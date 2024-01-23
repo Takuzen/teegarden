@@ -37,57 +37,56 @@ struct ContentView: View {
         
         TabView(selection: $model.selectedType) {
                     ForEach(ViewModel.SelectionType.allCases) { selectionType in
-                        homeView()
-                            .tag(selectionType)
-                            .tabItem {
-                                Label(selectionType.title, systemImage: selectionType.imageName)
+                        NavigationSplitView {
+                            VStack {
+                                if showImmersiveSpace_Progressive {
+                                    List(userMenuItems, id: \.self, selection: $defaultSelectionForUserMenu) { item in
+                                        NavigationLink(destination: userAllView) {
+                                            HStack {
+                                                Image(systemName: "house")
+                                                Text(item)
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    List(userMenuItems, id: \.self, selection: $defaultSelectionForUserMenu) { item in
+                                        NavigationLink(destination: homeView()) {
+                                            HStack {
+                                                Image(systemName: "infinity")
+                                                Text(item)
+                                            }
+                                        }
+                                    }
+                                }
+                                Toggle("My Space →", isOn: $showImmersiveSpace_Progressive)
+                                    .toggleStyle(.button)
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
                             }
-                    }
-                }
-        NavigationSplitView {
-            VStack {
-                if showImmersiveSpace_Progressive {
-                    List(userMenuItems, id: \.self, selection: $defaultSelectionForUserMenu) { item in
-                        NavigationLink(destination: userAllView) {
-                            HStack {
-                                Image(systemName: "house")
-                                Text(item)
+                            .listStyle(SidebarListStyle())
+                            .navigationTitle("Teegarden")
+                        } detail: {
+                            if showImmersiveSpace_Progressive {
+                                userAllView
+                            } else {
+                                homeView()
                             }
                         }
-                    }
-                } else {
-                    List(userMenuItems, id: \.self, selection: $defaultSelectionForUserMenu) { item in
-                        NavigationLink(destination: homeView()) {
-                            HStack {
-                                Image(systemName: "infinity")
-                                Text(item)
+                        .onChange(of: showImmersiveSpace_Progressive) { _, newValue in
+                            Task {
+                                if newValue {
+                                    await openImmersiveSpace(id: "ImmersiveSpace_Progressive")
+                                } else {
+                                    await dismissImmersiveSpace()
+                                }
                             }
+                        }
+                        .tag(selectionType)
+                        .tabItem {
+                            Label(selectionType.title, systemImage: selectionType.imageName)
                         }
                     }
                 }
-                Toggle("My Space →", isOn: $showImmersiveSpace_Progressive)
-                    .toggleStyle(.button)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-            }
-            .listStyle(SidebarListStyle())
-            .navigationTitle("Teegarden")
-        } detail: {
-            if showImmersiveSpace_Progressive {
-                userAllView
-            } else {
-                homeView()
-            }
-        }
-        .onChange(of: showImmersiveSpace_Progressive) { _, newValue in
-            Task {
-                if newValue {
-                    await openImmersiveSpace(id: "ImmersiveSpace_Progressive")
-                } else {
-                    await dismissImmersiveSpace()
-                }
-            }
-        }
     }
 }
 
@@ -336,6 +335,55 @@ struct USDZQLPreview: UIViewControllerRepresentable {
     }
 }
 
+func saveModelToTemporaryFolder(modelURL: URL) -> URL? {
+    // Get the documents directory URL
+    let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+    
+    // Create a URL for the "TmpModelFiles" directory
+    let tmpModelFilesDirectory = documentsDirectory.appendingPathComponent("TmpModelFiles")
+    
+    do {
+        // Create the directory if it doesn't exist
+        try FileManager.default.createDirectory(at: tmpModelFilesDirectory, withIntermediateDirectories: true)
+        
+        // Define the destination URL for the model file
+        let destinationURL = tmpModelFilesDirectory.appendingPathComponent(modelURL.lastPathComponent)
+        
+        // Copy the file from the source URL to the destination
+        try FileManager.default.copyItem(at: modelURL, to: destinationURL)
+        
+        // Return the URL where the model was saved
+        return destinationURL
+        
+    } catch {
+        // Handle any errors
+        print("Error saving model to temporary folder: \(error)")
+        return nil
+    }
+}
+
+func loadModelsFromTemporaryFolder() -> [URL] {
+    // Get the documents directory URL
+    let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+    let tmpModelFilesDirectory = documentsDirectory.appendingPathComponent("TmpModelFiles")
+    
+    do {
+        // Get the directory contents URLs (including subfolders URLs)
+        let directoryContents = try FileManager.default.contentsOfDirectory(at: tmpModelFilesDirectory, includingPropertiesForKeys: nil)
+        
+        // Filter the directory contents for files with the 'usdz' file extension
+        let usdzFiles = directoryContents.filter { $0.pathExtension == "usdz" }
+        
+        // Return the array of 'usdz' file URLs
+        return usdzFiles
+        
+    } catch {
+        // Handle any errors
+        print("Error loading models from temporary folder: \(error)")
+        return []
+    }
+}
+
 struct Add3DModelView: View {
     @State private var isPickerPresented = false
     @State private var selectedModelURL: URL? = nil
@@ -347,6 +395,15 @@ struct Add3DModelView: View {
     @EnvironmentObject var feedModel: FeedModel
     
     let sample_3dmodelurl = URL(string: "https://developer.apple.com/augmented-reality/quick-look/models/teapot/teapot.usdz")!
+    
+    func handleModelSelection(urls: [URL]) {
+        guard let selectedModelURL = urls.first else { return }
+        
+        if let savedURL = saveModelToTemporaryFolder(modelURL: selectedModelURL) {
+            // Use the saved URL as needed in your ContentView
+            print("Model saved to: \(savedURL)")
+        }
+    }
     
     var body: some View {
         NavigationStack {
@@ -365,7 +422,7 @@ struct Add3DModelView: View {
                     case .success(let urls):
                         print("Model URL selected: \(String(describing: urls.first))")
                         isLoadingModel = true
-                        self.selectedModelURL = urls.first
+                        handleModelSelection(urls: urls)
                         
                         // Upload the selected model to Firebase Storage
                         if let modelURL = selectedModelURL {

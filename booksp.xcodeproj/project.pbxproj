@@ -87,6 +87,13 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		CA26EB552B5EB61C0028253D /* TmpModelFiles */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = TmpModelFiles;
+			sourceTree = "<group>";
+		};
 		CAE2E3842A55904B0035F947 = {
 			isa = PBXGroup;
 			children = (
@@ -127,6 +134,7 @@
 				CAE2E39E2A55904D0035F947 /* Preview Content */,
 				CAEB54FD2A7FE35900C172E9 /* .gitignore */,
 				CA73CF8E2AB89F3300FDACBD /* bookspDebug.entitlements */,
+				CA26EB552B5EB61C0028253D /* TmpModelFiles */,
 			);
 			path = booksp;
 			sourceTree = "<group>";
@@ -560,7 +568,7 @@
 			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
 			requirement = {
 				kind = exactVersion;
-				version = 10.18.0;
+				version = 10.20.0;
 			};
 		};
 		E9C9D6ED2AC8641600DA35EB /* XCRemoteSwiftPackageReference "SwiftyJSON" */ = {

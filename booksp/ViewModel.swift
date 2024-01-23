@@ -16,7 +16,6 @@ class ViewModel {
     
     enum SelectionType: String, Identifiable, CaseIterable {
         case guitars = "guitars"
-        case televisions = "televisions"
         case shoes = "shoes"
 
         var id: String {
@@ -27,8 +26,6 @@ class ViewModel {
             switch self {
             case .guitars:
                 return URL(string: "https://developer.apple.com/augmented-reality/quick-look/models/stratocaster/fender_stratocaster.usdz")!
-            case .televisions:
-                return URL(string: "https://developer.apple.com/augmented-reality/quick-look/models/retrotv/tv_retro.usdz")!
             case .shoes:
                 return URL(string: "https://developer.apple.com/augmented-reality/quick-look/models/nike-air-force/sneaker_airforce.usdz")!
             }
@@ -37,22 +34,18 @@ class ViewModel {
         var title: String {
             switch self {
             case .guitars:
-                return "Guitars"
-            case .televisions:
-                return "Televisions"
+                return "Profile"
             case .shoes:
-                return "Shoes"
+                return "Post"
             }
         }
 
         var imageName: String {
             switch self {
             case .guitars:
-                return "guitars"
-            case .televisions:
-                return "tv"
+                return "person.crop.circle"
             case .shoes:
-                return "shoe"
+                return "plus"
             }
         }
     }
