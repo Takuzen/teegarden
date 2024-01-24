@@ -195,21 +195,6 @@ struct CubeToggle: View {
     }
 }
 
-struct BottomView: View {
-    var body: some View {
-        HStack {
-            Button(action: {
-                NavigationLink("") {
-                    CategorySelectionView()
-                }
-            }, label: {
-                Label("Add Content", systemImage: "plus")
-            })
-        }
-        .padding()
-    }
-}
-
 struct homeView: View {
     @EnvironmentObject var feedModel: FeedModel
     
@@ -260,9 +245,6 @@ private var userAllView: some View {
                     .cornerRadius(8)
             }
         }
-    }
-    .ornament(attachmentAnchor: .scene(.bottom)) {
-        BottomView().glassBackgroundEffect(in: .capsule)
     }
 }
     
@@ -330,7 +312,7 @@ struct USDZQLPreview: UIViewControllerRepresentable {
         }
 
         func previewController(_ controller: QLPreviewController, previewItemAt index: Int) -> QLPreviewItem {
-                return Bundle.main.url(forResource: "teapot", withExtension: ".usdz")! as QLPreviewItem
+                return url as QLPreviewItem
         }
     }
 }
@@ -386,84 +368,47 @@ func loadModelsFromTemporaryFolder() -> [URL] {
 
 struct Add3DModelView: View {
     @State private var isPickerPresented = false
-    @State private var selectedModelURL: URL? = nil
+    @State private var savedModelURL: URL?
+    @State private var confirmedModelURL: URL?
     @State private var captionText: String = ""
     @State private var showAlert = false
     @State private var alertMessage = ""
     @State private var isLoadingModel = false
     @State private var isPreviewing = false
+    
     @EnvironmentObject var feedModel: FeedModel
     
     let sample_3dmodelurl = URL(string: "https://developer.apple.com/augmented-reality/quick-look/models/teapot/teapot.usdz")!
     
     func handleModelSelection(urls: [URL]) {
         guard let selectedModelURL = urls.first else { return }
+
+        // Start accessing the security-scoped resource
+        let canAccess = selectedModelURL.startAccessingSecurityScopedResource()
         
-        if let savedURL = saveModelToTemporaryFolder(modelURL: selectedModelURL) {
-            // Use the saved URL as needed in your ContentView
-            print("Model saved to: \(savedURL)")
+        // If we have access, proceed to copy the file
+        if canAccess {
+            // Try to save the model to the temporary folder
+            if let savedTmpURL = saveModelToTemporaryFolder(modelURL: selectedModelURL) {
+                print("Model saved to: \(savedTmpURL)")
+                // Update any state or perform actions with the saved URL
+                self.savedModelURL = savedTmpURL
+                isPreviewing = true
+            }
+
+            // End accessing the security-scoped resource
+            selectedModelURL.stopAccessingSecurityScopedResource()
+        } else {
+            print("Don't have permission to access the file")
+            // Handle the lack of permission here, maybe update the UI or show an alert
         }
     }
     
     var body: some View {
         NavigationStack {
-            VStack {
-                Button("Choose 3D Model") {
-                    isPickerPresented = true
-                    print("File picker presented")
-                }
-                .fileImporter(
-                    isPresented: $isPickerPresented,
-                    allowedContentTypes: [UTType.usdz],
-                    allowsMultipleSelection: false
-                ) { result in
-                    print("File picker result received")
-                    switch result {
-                    case .success(let urls):
-                        print("Model URL selected: \(String(describing: urls.first))")
-                        isLoadingModel = true
-                        handleModelSelection(urls: urls)
-                        
-                        // Upload the selected model to Firebase Storage
-                        if let modelURL = selectedModelURL {
-                            FirebaseViewModel.shared.uploadModel(modelURL) { result in
-                                isLoadingModel = false
-                                switch result {
-                                case .success(let url):
-                                    self.selectedModelURL = url
-                                    // Now you have the Firebase Storage URL for the uploaded model
-                                    // Use it as needed, for example, pass it to the 'modelURL' constant
-                                case .failure(let error):
-                                    alertMessage = "Error uploading model: \(error.localizedDescription)"
-                                    showAlert = true
-                                }
-                            }
-                        }
-                    case .failure(let error):
-                        print("Error selecting file: \(error.localizedDescription)")
-                        alertMessage = "Error selecting file: \(error.localizedDescription)"
-                        showAlert = true
-                    }
-                }
-                
-                Button("Preview 3D Model") {
-                    isPreviewing = true
-                }
-                .sheet(isPresented: $isPreviewing) {
-                    USDZQLPreview(url: sample_3dmodelurl)
-                }
-/*
-                if let modelURL = selectedModelURL {
-                                    Button("Preview 3D Model") {
-                                        isPreviewing = true
-                                    }
-                                    .sheet(isPresented: $isPreviewing) {
-                                        USDZQLPreview(url: modelURL)
-                                    }
-                                }
-*/
-/*
-                if let modelURL = selectedModelURL {
+            if let modelURL = confirmedModelURL {
+                VStack {
+                    
                     Model3D(url: modelURL) { model in
                         model
                             .resizable()
@@ -474,57 +419,160 @@ struct Add3DModelView: View {
                             ProgressView()
                                 .onAppear {
                                     DispatchQueue.main.asyncAfter(deadline: .now() + 5) {                                        if isLoadingModel {
-                                            alertMessage = "Loading timeout. Please try a different model."
-                                            showAlert = true
-                                            isLoadingModel = false
-                                        }
+                                        alertMessage = "Loading timeout. Please try a different model."
+                                        showAlert = true
+                                        isLoadingModel = false
+                                    }
                                     }
                                 }
                         }
                     }
-                } else {
-                    Text("No model selected").padding()
+                    
+                    Button("Preview in spatial") {
+                        isPreviewing = true
+                    }
+                    
+                    TextField("Write a caption...", text: $captionText)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .padding()
+                    
+                    if confirmedModelURL == nil {
+                        Button("Post →") {}
+                            .disabled(true)
+                            .padding()
+                    } else {
+                        HStack {
+                            Spacer()
+                            Button("Post →") {
+                                let newPost = Post(modelURL: confirmedModelURL!, caption: captionText)
+                                feedModel.addPost(newPost)
+                                alertMessage = "Your post has been successfully added!"
+                                showAlert = true
+                                captionText = ""
+                                savedModelURL = nil
+                                confirmedModelURL = nil
+                            }
+                            .padding()
+                            .alert(isPresented: $showAlert) {
+                                Alert(title: Text("Notification"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
+                            }
+                        }
+                        .padding()
+                    }
                 }
-*/
-                TextField("Write a caption...", text: $captionText)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .padding()
-                
-                Spacer()
-                
-                HStack {
-                    Spacer()
-                    Button("Post →") {
-                        
-                        let newPost = Post(modelURL: sample_3dmodelurl, caption: captionText)
-                        feedModel.addPost(newPost)
-                        alertMessage = "Your post has been successfully added!"
-                        showAlert = true
-                        captionText = ""
-                        selectedModelURL = nil
-                        
-                        /*
-                        if let modelURL = selectedModelURL {
-                            let newPost = Post(modelURL: modelURL, caption: captionText)
-                            feedModel.addPost(newPost)
-                            alertMessage = "Your post has been successfully added!"
-                            showAlert = true
-                            captionText = ""
-                            selectedModelURL = nil
-                        } else {
-                            alertMessage = "Please select a model first"
+            } else {
+                VStack {
+                    Text("No model selected")
+                        .padding()
+                    Button("Choose 3D Model") {
+                        isPickerPresented = true
+                        print("File picker presented")
+                    }
+                    .fileImporter(
+                        isPresented: $isPickerPresented,
+                        allowedContentTypes: [UTType.usdz],
+                        allowsMultipleSelection: false
+                    ) { result in
+                        print("File picker result received")
+                        switch result {
+                        case .success(let urls):
+                            print("Model URL selected: \(String(describing: urls.first))")
+                            isLoadingModel = true
+                            handleModelSelection(urls: urls)
+                            
+                            /*
+                             
+                             // Upload the selected model to Firebase Storage, allcubes and users/[UUID]/here!
+                             
+                             if let modelURL = savedModelURL {
+                             FirebaseViewModel.shared.uploadModel(modelURL) { result in
+                             isLoadingModel = false
+                             switch result {
+                             case .success(let url):
+                             self.savedModelURL = url
+                             // Now you have the Firebase Storage URL for the uploaded model
+                             // Use it as needed, for example, pass it to the 'modelURL' constant
+                             case .failure(let error):
+                             alertMessage = "Error uploading model: \(error.localizedDescription)"
+                             showAlert = true
+                             }
+                             }
+                             }
+                             */
+                            
+                        case .failure(let error):
+                            print("Error selecting file: \(error.localizedDescription)")
+                            alertMessage = "Error selecting file: \(error.localizedDescription)"
                             showAlert = true
                         }
                     }
-                    .padding()
-                    .alert(isPresented: $showAlert) {
-                        Alert(title: Text("Notification"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
-                         */
-                        
+                    .sheet(isPresented: $isPreviewing) {
+                        if let modelURL = savedModelURL {
+                            NavigationView {
+                                VStack {
+                                    HStack {
+                                        Spacer()
+                                        Button(action: { isPreviewing = false }) {
+                                            Label("", systemImage: "xmark")
+                                        }
+                                    }
+                                    .labelStyle(.iconOnly)
+                                    .padding()
+                                    .foregroundColor(.white)
+                                    .cornerRadius(8)
+                                    
+                                    VStack {
+                                        USDZQLPreview(url: modelURL)
+                                            .edgesIgnoringSafeArea(.all)
+                                        Button("Confirm") {
+                                            confirmedModelURL = modelURL
+                                            isPreviewing = false
+                                        }
+                                        .padding()
+                                        .foregroundColor(.white)
+                                        .cornerRadius(8)
+                                        
+                                        Button("Cancel") {
+                                            isPreviewing = false
+                                        }
+                                        .padding()
+                                        .foregroundColor(.white)
+                                        .cornerRadius(8)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    TextField("Write a caption...", text: $captionText)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .padding()
+                    
+                    Spacer()
+                    
+                    if confirmedModelURL == nil {
+                        Button("Post →") {}
+                            .disabled(true)
+                    } else {
+                        HStack {
+                            Spacer()
+                            Button("Post →") {
+                                let newPost = Post(modelURL: confirmedModelURL!, caption: captionText)
+                                feedModel.addPost(newPost)
+                                alertMessage = "Your post has been successfully added!"
+                                showAlert = true
+                                captionText = ""
+                                savedModelURL = nil
+                                confirmedModelURL = nil
+                            }
+                            .alert(isPresented: $showAlert) {
+                                Alert(title: Text("Notification"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
+                            }
+                        }
+                        .padding()
                     }
                 }
             }
-            .padding()
         }
     }
 }
@@ -566,4 +614,4 @@ struct Add3DModelView: View {
  #Preview {
  ContentView()
  }
- */
+*/
