@@ -15,6 +15,7 @@ class ViewModel {
     var isShowingCube: Bool = false
     
     enum SelectionType: String, Identifiable, CaseIterable {
+        case home = "home"
         case guitars = "guitars"
         case shoes = "shoes"
 
@@ -22,17 +23,10 @@ class ViewModel {
             return rawValue
         }
 
-        var url: URL {
-            switch self {
-            case .guitars:
-                return URL(string: "https://developer.apple.com/augmented-reality/quick-look/models/stratocaster/fender_stratocaster.usdz")!
-            case .shoes:
-                return URL(string: "https://developer.apple.com/augmented-reality/quick-look/models/nike-air-force/sneaker_airforce.usdz")!
-            }
-        }
-
         var title: String {
             switch self {
+            case .home:
+                return "Home"
             case .guitars:
                 return "Profile"
             case .shoes:
@@ -42,6 +36,8 @@ class ViewModel {
 
         var imageName: String {
             switch self {
+            case .home:
+                return "house"
             case .guitars:
                 return "person.crop.circle"
             case .shoes:

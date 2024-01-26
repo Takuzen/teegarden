@@ -317,31 +317,55 @@ struct USDZQLPreview: UIViewControllerRepresentable {
     }
 }
 
-func saveModelToTemporaryFolder(modelURL: URL) -> URL? {
+enum FileSaveError: Error {
+    case fileExists
+}
+
+func saveModelToTemporaryFolder(modelURL: URL, overwrite: Bool) async -> Result<URL, Error> {
+    
+    let fileManager = FileManager.default
+    
     // Get the documents directory URL
     let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
     
     // Create a URL for the "TmpModelFiles" directory
     let tmpModelFilesDirectory = documentsDirectory.appendingPathComponent("TmpModelFiles")
     
+    if !fileManager.fileExists(atPath: tmpModelFilesDirectory.path) {
+        do {
+            try fileManager.createDirectory(at: tmpModelFilesDirectory, withIntermediateDirectories: true)
+        } catch {
+            return .failure(error)
+        }
+    }
+        
+    // Define the destination URL for the model file
+    let destinationURL = tmpModelFilesDirectory.appendingPathComponent(modelURL.lastPathComponent)
+    
+    // Check if the file already exists at the destination
+    if fileManager.fileExists(atPath: destinationURL.path) {
+        guard overwrite else {
+            return .failure(FileSaveError.fileExists)
+        }
+        // If the user has agreed to overwrite, then delete the existing file first
+        do {
+            try fileManager.removeItem(at: destinationURL)
+            print("overwrote the file.")
+        } catch {
+            return .failure(error)
+        }
+    }
+        
+    // Copy the file from the source URL to the destination
     do {
-        // Create the directory if it doesn't exist
-        try FileManager.default.createDirectory(at: tmpModelFilesDirectory, withIntermediateDirectories: true)
-        
-        // Define the destination URL for the model file
-        let destinationURL = tmpModelFilesDirectory.appendingPathComponent(modelURL.lastPathComponent)
-        
-        // Copy the file from the source URL to the destination
-        try FileManager.default.copyItem(at: modelURL, to: destinationURL)
-        
-        // Return the URL where the model was saved
-        return destinationURL
+        try fileManager.copyItem(at: modelURL, to: destinationURL)
+        print("destinationURL got and it is: \(destinationURL)")
+        return .success(destinationURL)
         
     } catch {
-        // Handle any errors
-        print("Error saving model to temporary folder: \(error)")
-        return nil
+        return .failure(error)
     }
+        
 }
 
 func loadModelsFromTemporaryFolder() -> [URL] {
@@ -368,41 +392,146 @@ func loadModelsFromTemporaryFolder() -> [URL] {
 
 struct Add3DModelView: View {
     @State private var isPickerPresented = false
-    @State private var savedModelURL: URL?
+    @State private var selectedModelURL: URL?
     @State private var confirmedModelURL: URL?
+    @State private var savedModelURL: URL?
     @State private var captionText: String = ""
     @State private var showAlert = false
     @State private var alertMessage = ""
     @State private var isLoadingModel = false
     @State private var isPreviewing = false
+    @State private var showOverwriteAlert = false
+    @State private var showErrorAlert = false
+    @State private var errorMessage = ""
     
     @EnvironmentObject var feedModel: FeedModel
     
     let sample_3dmodelurl = URL(string: "https://developer.apple.com/augmented-reality/quick-look/models/teapot/teapot.usdz")!
     
     func handleModelSelection(urls: [URL]) {
-        guard let selectedModelURL = urls.first else { return }
-
-        // Start accessing the security-scoped resource
-        let canAccess = selectedModelURL.startAccessingSecurityScopedResource()
+        guard let firstModelURL = urls.first else { return }
         
-        // If we have access, proceed to copy the file
+        print("firstModelURL is: \(firstModelURL)")
+        
+        // Start accessing the security-scoped resource
+        let canAccess = firstModelURL.startAccessingSecurityScopedResource()
+        
         if canAccess {
-            // Try to save the model to the temporary folder
-            if let savedTmpURL = saveModelToTemporaryFolder(modelURL: selectedModelURL) {
-                print("Model saved to: \(savedTmpURL)")
-                // Update any state or perform actions with the saved URL
-                self.savedModelURL = savedTmpURL
-                isPreviewing = true
+            Task {
+                print("Inside Task block")
+                // First, attempt to save the model without overwriting
+                let result = await saveModelToTemporaryFolder(modelURL: firstModelURL, overwrite: false)
+                
+                switch result {
+                case .success(let savedURL):
+                    // Model saved successfully
+                    print("Model saved to: \(savedURL)")
+                    self.savedModelURL = savedURL
+                    isPreviewing = true
+                case .failure(let error):
+                    if let fileSaveError = error as? FileSaveError, fileSaveError == .fileExists {
+                        // If the error is because the file exists, prepare to ask for overwrite confirmation
+                        DispatchQueue.main.async {
+                            showOverwriteAlert = true
+                        }
+                    } else {
+                        // For all other errors, show an error alert
+                        DispatchQueue.main.async {
+                            alertMessage = error.localizedDescription
+                            showAlert = true
+                        }
+                    }
+                }
             }
-
-            // End accessing the security-scoped resource
-            selectedModelURL.stopAccessingSecurityScopedResource()
         } else {
             print("Don't have permission to access the file")
-            // Handle the lack of permission here, maybe update the UI or show an alert
+            DispatchQueue.main.async {
+                alertMessage = "You don't have permission to access the file."
+                showAlert = true
+            }
         }
     }
+    
+    struct ModelPreviewView: View {
+        @Binding var modelURL: URL?
+        @Binding var confirmedModelURL: URL?
+        @Binding var isPreviewing: Bool
+        
+        var body: some View {
+            VStack {
+                if let url = modelURL {
+                    NavigationView {
+                        VStack {
+                            
+                            Button(action: { isPreviewing = false }) {
+                                Label("", systemImage: "xmark")
+                            }
+                            
+                            USDZQLPreview(url: url)
+                                .edgesIgnoringSafeArea(.all)
+                            
+                            Button("Confirm") {
+                                confirmedModelURL = modelURL
+                                isPreviewing = false
+                            }
+                            .padding()
+                            .foregroundColor(.white)
+                            .cornerRadius(8)
+                            
+                            Button("Cancel") {
+                                isPreviewing = false
+                            }
+                            .padding()
+                            .foregroundColor(.white)
+                            .cornerRadius(8)
+                        }
+                    }
+                } else {
+                    Text("Hello, no URL available")
+                }
+            }
+        }
+    }
+    
+    /*
+     if let modelURL = savedModelURL {
+     NavigationView {
+     VStack {
+     HStack {
+     Spacer()
+     Button(action: { isPreviewing = false }) {
+     Label("", systemImage: "xmark")
+     }
+     }
+     .labelStyle(.iconOnly)
+     .padding()
+     .foregroundColor(.white)
+     .cornerRadius(8)
+     
+     VStack {
+     Text("\(modelURL)")
+     USDZQLPreview(url: modelURL)
+     .edgesIgnoringSafeArea(.all)
+     Button("Confirm") {
+     confirmedModelURL = modelURL
+     isPreviewing = false
+     }
+     .padding()
+     .foregroundColor(.white)
+     .cornerRadius(8)
+     
+     Button("Cancel") {
+     isPreviewing = false
+     }
+     .padding()
+     .foregroundColor(.white)
+     .cornerRadius(8)
+     }
+     }
+     }
+     }
+     */
+    
     
     var body: some View {
         NavigationStack {
@@ -414,23 +543,27 @@ struct Add3DModelView: View {
                             .resizable()
                             .aspectRatio(contentMode: .fit)
                             .frame(width: 200, height: 200)
+                        
                     } placeholder: {
                         if isLoadingModel {
                             ProgressView()
                                 .onAppear {
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 5) {                                        if isLoadingModel {
-                                        alertMessage = "Loading timeout. Please try a different model."
-                                        showAlert = true
-                                        isLoadingModel = false
-                                    }
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+                                        if isLoadingModel {
+                                            alertMessage = "Loading timeout. Please try a different model."
+                                            showAlert = true
+                                            isLoadingModel = false
+                                        }
                                     }
                                 }
                         }
                     }
+                    .padding()
                     
-                    Button("Preview in spatial") {
-                        isPreviewing = true
+                    Button("Re-select") {
+                        /// the logic to open file picker and let users choose another file
                     }
+                    .padding()
                     
                     TextField("Write a caption...", text: $captionText)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -464,7 +597,7 @@ struct Add3DModelView: View {
                 VStack {
                     Text("No model selected")
                         .padding()
-                    Button("Choose 3D Model") {
+                    Button("Choose A Spatial File") {
                         isPickerPresented = true
                         print("File picker presented")
                     }
@@ -478,6 +611,7 @@ struct Add3DModelView: View {
                         case .success(let urls):
                             print("Model URL selected: \(String(describing: urls.first))")
                             isLoadingModel = true
+                            selectedModelURL = urls.first
                             handleModelSelection(urls: urls)
                             
                             /*
@@ -506,49 +640,44 @@ struct Add3DModelView: View {
                             showAlert = true
                         }
                     }
+                    
                     .sheet(isPresented: $isPreviewing) {
-                        if let modelURL = savedModelURL {
-                            NavigationView {
-                                VStack {
-                                    HStack {
-                                        Spacer()
-                                        Button(action: { isPreviewing = false }) {
-                                            Label("", systemImage: "xmark")
-                                        }
-                                    }
-                                    .labelStyle(.iconOnly)
-                                    .padding()
-                                    .foregroundColor(.white)
-                                    .cornerRadius(8)
-                                    
-                                    VStack {
-                                        USDZQLPreview(url: modelURL)
-                                            .edgesIgnoringSafeArea(.all)
-                                        Button("Confirm") {
-                                            confirmedModelURL = modelURL
-                                            isPreviewing = false
-                                        }
-                                        .padding()
-                                        .foregroundColor(.white)
-                                        .cornerRadius(8)
-                                        
-                                        Button("Cancel") {
-                                            isPreviewing = false
-                                        }
-                                        .padding()
-                                        .foregroundColor(.white)
-                                        .cornerRadius(8)
+                        ModelPreviewView(modelURL: $savedModelURL, confirmedModelURL: $confirmedModelURL, isPreviewing: $isPreviewing)
+                    }
+                    
+                    .alert(isPresented: $showErrorAlert) {
+                        Alert(
+                            title: Text("Error"),
+                            message: Text(errorMessage),
+                            dismissButton: .default(Text("OK"))
+                        )
+                    }
+                    
+                    .alert(isPresented: $showOverwriteAlert) {
+                        Alert(
+                            title: Text("File Already Exists"),
+                            message: Text("A file with the same name already exists. Would you like to overwrite it?"),
+                            primaryButton: .destructive(Text("Overwrite")) {
+                                Task {
+                                    let result = await saveModelToTemporaryFolder(modelURL: selectedModelURL!, overwrite: true)
+                                    // Handle result of overwrite attempt
+                                    switch result {
+                                    case .success(let savedURL):
+                                        self.savedModelURL = savedURL
+                                        isPreviewing = true
+                                    case .failure(let error):
+                                        errorMessage = error.localizedDescription
+                                        showErrorAlert = true
                                     }
                                 }
-                            }
-                        }
+                            },
+                            secondaryButton: .cancel()
+                        )
                     }
                     
                     TextField("Write a caption...", text: $captionText)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                         .padding()
-                    
-                    Spacer()
                     
                     if confirmedModelURL == nil {
                         Button("Post →") {}
@@ -563,6 +692,7 @@ struct Add3DModelView: View {
                                 showAlert = true
                                 captionText = ""
                                 savedModelURL = nil
+                                selectedModelURL = nil
                                 confirmedModelURL = nil
                             }
                             .alert(isPresented: $showAlert) {
