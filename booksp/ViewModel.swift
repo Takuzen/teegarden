@@ -11,13 +11,13 @@ import Observation
 @Observable
 class ViewModel {
 
-    var selectedType: SelectionType = .guitars
+    var selectedType: SelectionType = .home
     var isShowingCube: Bool = false
     
     enum SelectionType: String, Identifiable, CaseIterable {
         case home = "home"
-        case guitars = "guitars"
-        case shoes = "shoes"
+        case profile = "profile"
+        case post = "post"
 
         var id: String {
             return rawValue
@@ -27,9 +27,9 @@ class ViewModel {
             switch self {
             case .home:
                 return "Home"
-            case .guitars:
+            case .profile:
                 return "Profile"
-            case .shoes:
+            case .post:
                 return "Post"
             }
         }
@@ -38,9 +38,9 @@ class ViewModel {
             switch self {
             case .home:
                 return "house"
-            case .guitars:
+            case .profile:
                 return "person.crop.circle"
-            case .shoes:
+            case .post:
                 return "plus"
             }
         }

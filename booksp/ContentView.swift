@@ -13,17 +13,9 @@ struct ContentView: View {
     
     @Environment(ViewModel.self) private var model
     
-    @State var showImmersiveSpace_Progressive = false
-    @State private var defaultSelectionForHomeMenu: String? = "Home"
     @State private var defaultSelectionForUserMenu: String? = "All"
     
-    @Environment(\.openImmersiveSpace) var openImmersiveSpace
-    @Environment(\.dismissImmersiveSpace) var dismissImmersiveSpace
-    
     @ObservedObject var googleBooksAPI = GoogleBooksAPIRepository()
-    
-    let homeMenuItems = ["Home"]
-    let userMenuItems = ["All"]
     
     let columns: [GridItem] = [
         GridItem(.flexible(), spacing: CGFloat(10), alignment: nil),
@@ -31,64 +23,165 @@ struct ContentView: View {
         GridItem(.flexible(), spacing: CGFloat(10), alignment: nil),
     ]
     
+    enum TabItem: String, CaseIterable {
+        case home = "house"
+        case profile = "person.crop.circle"
+        case post = "plus"
+        
+        var title: String {
+            switch self {
+            case .home: return "Home"
+            case .profile: return "Profile"
+            case .post: return "Post"
+            }
+        }
+    }
+    
+    @State private var selectedTab: TabItem = .home
+    
     var body: some View {
+        TabView(selection: $selectedTab) {
+            ForEach(TabItem.allCases, id: \.self) { tab in
+                Group {
+                    if tab == .home {
+                        HomeViewWrapper()
+                    } else if tab == .profile {
+                        UserAllViewWrapper()
+                    } else if tab == .post {
+                        Add3DModelViewWrapper()
+                    }
+                }
+                .tabItem {
+                    Image(systemName: tab.rawValue)
+                    Text(tab.title)
+                }
+                .tag(tab)
+            }
+        }
+        .onAppear {
+            selectedTab = .home
+        }
+    }
+
+    struct HomeViewWrapper: View {
+        var body: some View {
+            NavigationStack {
+                homeView()
+            }
+        }
+    }
+
+    struct UserAllViewWrapper: View {
+        var body: some View {
+            NavigationStack {
+                userAllView()
+            }
+        }
+    }
         
-        @Bindable var model = model
-        
-        TabView(selection: $model.selectedType) {
-                    ForEach(ViewModel.SelectionType.allCases) { selectionType in
-                        NavigationSplitView {
+    struct Add3DModelViewWrapper: View {
+        var body: some View {
+            NavigationStack {
+                Add3DModelView()
+            }
+        }
+    }
+}
+
+struct homeView: View {
+    @EnvironmentObject var feedModel: FeedModel
+    
+    var body: some View {
+        NavigationStack {
+            VStack {
+                VStack {
+                    
+                    HStack {
+                        Text("Spatial Video")
+                            .font(.headline)
+                            .padding(.leading)
+                        Spacer()
+                    }
+                    
+                    ScrollView(.horizontal, showsIndicators: true) {
+                        ForEach(feedModel.posts, id: \.id) { post in
                             VStack {
-                                if showImmersiveSpace_Progressive {
-                                    List(userMenuItems, id: \.self, selection: $defaultSelectionForUserMenu) { item in
-                                        NavigationLink(destination: userAllView) {
-                                            HStack {
-                                                Image(systemName: "house")
-                                                Text(item)
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    List(userMenuItems, id: \.self, selection: $defaultSelectionForUserMenu) { item in
-                                        NavigationLink(destination: homeView()) {
-                                            HStack {
-                                                Image(systemName: "infinity")
-                                                Text(item)
-                                            }
-                                        }
-                                    }
+                                HStack {
+                                    Image(systemName:"person.crop.circle")
+                                    Text("username")
                                 }
-                                Toggle("My Space →", isOn: $showImmersiveSpace_Progressive)
-                                    .toggleStyle(.button)
-                                    .frame(maxWidth: .infinity)
-                                    .padding()
-                            }
-                            .listStyle(SidebarListStyle())
-                            .navigationTitle("Teegarden")
-                        } detail: {
-                            if showImmersiveSpace_Progressive {
-                                userAllView
-                            } else {
-                                homeView()
-                            }
-                        }
-                        .onChange(of: showImmersiveSpace_Progressive) { _, newValue in
-                            Task {
-                                if newValue {
-                                    await openImmersiveSpace(id: "ImmersiveSpace_Progressive")
-                                } else {
-                                    await dismissImmersiveSpace()
+                                Model3D(url: post.modelURL) { model in
+                                    model
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fit)
+                                        .frame(width: 100, height: 100)
+                                } placeholder: {
+                                    ProgressView()
                                 }
+                                .padding()
+                                Text(post.caption)
                             }
-                        }
-                        .tag(selectionType)
-                        .tabItem {
-                            Label(selectionType.title, systemImage: selectionType.imageName)
+                            .padding()
                         }
                     }
                 }
+                
+                VStack {
+                    
+                    HStack {
+                        Text("Spatial Products")
+                            .font(.headline)
+                            .padding(.leading)
+                        Spacer()
+                    }
+                    
+                    ScrollView(.horizontal, showsIndicators: true) {
+                        ForEach(feedModel.posts, id: \.id) { post in
+                            VStack {
+                                HStack {
+                                    Image(systemName:"person.crop.circle")
+                                    Text("username")
+                                }
+                                Model3D(url: post.modelURL) { model in
+                                    model
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fit)
+                                        .frame(width: 100, height: 100)
+                                } placeholder: {
+                                    ProgressView()
+                                }
+                                .padding()
+                                Text(post.caption)
+                            }
+                            .padding()
+                        }
+                    }
+                }
+            }
+            .padding(.leading, 20)
+        }
+        .navigationTitle("Teegarden")
     }
 }
+    
+struct userAllView: View {
+    var body: some View {
+        NavigationStack {
+            VStack {
+                Text("Teegarden is the tool, designed to help makers broaden the range of expression by adding one more dimension. Moreover, for any people wish to have a spatial archive. Check out our guide book, raising your head.")
+                    .padding()
+                NavigationLink(destination: Add3DModelView()) {
+                    Text("Go post now →")
+                        .padding()
+                        .foregroundColor(Color.white)
+                        .cornerRadius(8)
+                }
+            }
+        }
+        .navigationTitle("My Space")
+    }
+}
+
 
 struct Book: Identifiable {
     let id: String
@@ -192,59 +285,6 @@ struct CubeToggle: View {
                 }
             }
             .toggleStyle(.button)
-    }
-}
-
-struct homeView: View {
-    @EnvironmentObject var feedModel: FeedModel
-    
-    var body: some View {
-        ScrollView(.horizontal, showsIndicators: true) {
-            ForEach(feedModel.posts, id: \.id) { post in
-                HStack {
-                    VStack {
-                        Text("profile-thumbnail")
-                        Text("username")
-                        Text(post.caption)
-                    }
-                    Model3D(url: post.modelURL) { model in
-                                            model
-                                                .resizable()
-                                                .aspectRatio(contentMode: .fit)
-                                                .frame(width: 100, height: 100)
-                                        } placeholder: {
-                                            ProgressView()
-                                        }
-                                        .padding()
-                }
-                //.frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
-                .padding()
-            }
-        }
-    }
-}
-
-struct userViewOrnament: View {
-    var body: some View {
-        HStack {
-            Label("Add Content", systemImage: "plus")
-            Label("Support", systemImage: "questionmark")
-        }
-    }
-}
-    
-private var userAllView: some View {
-    NavigationStack {
-        VStack {
-            Text("Let's learn how to build your spatial contents!")
-                .padding()
-            NavigationLink(destination: CategorySelectionView()) {
-                Text("Demo →")
-                    .padding()
-                    .foregroundColor(Color.white)
-                    .cornerRadius(8)
-            }
-        }
     }
 }
     
@@ -492,47 +532,7 @@ struct Add3DModelView: View {
             }
         }
     }
-    
-    /*
-     if let modelURL = savedModelURL {
-     NavigationView {
-     VStack {
-     HStack {
-     Spacer()
-     Button(action: { isPreviewing = false }) {
-     Label("", systemImage: "xmark")
-     }
-     }
-     .labelStyle(.iconOnly)
-     .padding()
-     .foregroundColor(.white)
-     .cornerRadius(8)
-     
-     VStack {
-     Text("\(modelURL)")
-     USDZQLPreview(url: modelURL)
-     .edgesIgnoringSafeArea(.all)
-     Button("Confirm") {
-     confirmedModelURL = modelURL
-     isPreviewing = false
-     }
-     .padding()
-     .foregroundColor(.white)
-     .cornerRadius(8)
-     
-     Button("Cancel") {
-     isPreviewing = false
-     }
-     .padding()
-     .foregroundColor(.white)
-     .cornerRadius(8)
-     }
-     }
-     }
-     }
-     */
-    
-    
+
     var body: some View {
         NavigationStack {
             if let modelURL = confirmedModelURL {
@@ -704,6 +704,7 @@ struct Add3DModelView: View {
                 }
             }
         }
+        .navigationTitle("Post")
     }
 }
 
