@@ -1,7 +1,11 @@
 import SwiftUI
 import UIKit
 import QuickLook
+
 import UniformTypeIdentifiers
+extension UTType {
+    static let reality = UTType(exportedAs: "com.apple.reality")
+}
 import FirebaseAuth
 import RealityKit
 
@@ -14,6 +18,10 @@ struct ContentView: View {
     @Environment(ViewModel.self) private var model
     
     @State private var defaultSelectionForUserMenu: String? = "All"
+    @State private var isLoggedIn = false
+    @State private var selectedTab: TabItem = .home
+    
+    @StateObject var firebase = FirebaseViewModel()
     
     @ObservedObject var googleBooksAPI = GoogleBooksAPIRepository()
     
@@ -37,17 +45,21 @@ struct ContentView: View {
         }
     }
     
-    @State private var selectedTab: TabItem = .home
-    
     var body: some View {
         TabView(selection: $selectedTab) {
             ForEach(TabItem.allCases, id: \.self) { tab in
                 Group {
                     if tab == .home {
                         HomeViewWrapper()
-                    } else if tab == .profile {
+                    } else if tab == .profile && !firebase.isLoggedIn {
+                        logInViewToProfile()
+                            .environmentObject(firebase)
+                    } else if tab == .profile && firebase.isLoggedIn {
                         UserAllViewWrapper()
-                    } else if tab == .post {
+                    } else if tab == .post && !firebase.isLoggedIn {
+                        logInViewToPost()
+                            .environmentObject(firebase)
+                    } else if tab == .post && firebase.isLoggedIn {
                         Add3DModelViewWrapper()
                     }
                 }
@@ -86,42 +98,279 @@ struct ContentView: View {
             }
         }
     }
+    // MARK: - LogInView
+    struct logInViewToProfile: View {
+        
+        @EnvironmentObject var firebase: FirebaseViewModel
+        
+        @State private var showingSuccessAlert = false
+        @State private var successMessage = "Signed In Successfully."
+        @State private var navigationTag: NavigationTag?
+        
+        enum NavigationTag {
+            case userAllView
+        }
+        
+        
+        var body: some View {
+            NavigationStack {
+                VStack {
+                    Text("Authentication")
+                    
+                    TextField("Email", text: $firebase.mail)
+                        .keyboardType(.emailAddress)
+                        .autocapitalization(.none)
+                        .padding()
+                        .frame(width: 250.0, height: 100.0)
+                    
+                    SecureField("Password", text: $firebase.password)
+                        .padding()
+                        .frame(width: 250.0, height: 100.0)
+                    
+                    VStack {
+                        Button(action: {
+                            firebase.login { success, message in
+                                if success {
+                                    print("enter success logic")
+                                    successMessage = message
+                                    showingSuccessAlert = true
+                                    print("showingSuccessAlert is toggled")
+                                    firebase.isLoggedIn = true
+                                } else {
+                                    firebase.errorMessage = message                                }
+                            }
+                        }) {
+                            Text("Authenticate →")
+                        }
+                        .alert(
+                            "Success",
+                            isPresented: $showingSuccessAlert,
+                            presenting: successMessage
+                        ) { _ in
+                            Button("OK") {
+                                navigationTag = .userAllView
+                            }
+                        } message: { successMessage in
+                            Text(successMessage)
+                        }
+                        
+                        Text(firebase.errorMessage)
+                        
+                        Text("Create an account?")
+                            .onTapGesture {
+                                
+                            }
+                        
+                        NavigationLink(value: NavigationTag.userAllView) {
+                            EmptyView()
+                        }
+                        .hidden()
+                    }
+                }
+                .navigationDestination(for: NavigationTag.self) { tag in
+                    switch tag {
+                    case .userAllView:
+                        UserAllViewWrapper()
+                    }
+                }
+            }
+        }
+    }
+    
+    struct logInViewToPost: View {
+        
+        @EnvironmentObject var firebase: FirebaseViewModel
+        
+        @State private var showingSuccessAlert = false
+        @State private var successMessage = "Signed In Successfully."
+        @State private var navigationTag: NavigationTag?
+        
+        enum NavigationTag {
+            case postView
+        }
+        
+        var body: some View {
+            NavigationStack {
+                VStack {
+                    Text("Authentication")
+                    
+                    TextField("Email", text: $firebase.mail)
+                        .keyboardType(.emailAddress)
+                        .autocapitalization(.none)
+                        .padding()
+                        .frame(width: 250.0, height: 100.0)
+                    
+                    SecureField("Password", text: $firebase.password)
+                        .padding()
+                        .frame(width: 250.0, height: 100.0)
+                    
+                    VStack {
+                        Button(action: {
+                            firebase.login { success, message in
+                                if success {
+                                    print("enter success logic")
+                                    successMessage = message
+                                    showingSuccessAlert = true
+                                    print("showingSuccessAlert is toggled")
+                                    firebase.isLoggedIn = true
+                                } else {
+                                    firebase.errorMessage = message                                }
+                            }
+                        }) {
+                            Text("Authenticate →")
+                        }
+                        .alert(
+                            "Success",
+                            isPresented: $showingSuccessAlert,
+                            presenting: successMessage
+                        ) { _ in
+                            Button("OK") {
+                                navigationTag = .postView
+                            }
+                        } message: { successMessage in
+                            Text(successMessage)
+                        }
+                        
+                        Text(firebase.errorMessage)
+                        
+                        Text("Create an account?")
+                            .onTapGesture {
+                                
+                            }
+                        
+                        NavigationLink(value: NavigationTag.postView) {
+                            EmptyView()
+                        }
+                        .hidden()
+                    }
+                }
+                .navigationDestination(for: NavigationTag.self) { tag in
+                    switch tag {
+                    case .postView:
+                        Add3DModelViewWrapper()
+                    }
+                }
+            }
+        }
+    }
+    
+    struct SignUpView: View {
+        
+        @EnvironmentObject var firebase: FirebaseViewModel
+        
+        @State private var showingSuccessAlert = false
+        @State private var successMessage = "User registration has succeeded!."
+        @State private var navigationTag: NavigationTag?
+        
+        enum NavigationTag {
+            case userAllView
+        }
+        
+        var body: some View {
+            VStack {
+                Text("Registration")
+                
+                TextField("Email", text: $firebase.mail)
+                    .keyboardType(.emailAddress)
+                    .autocapitalization(.none)
+                    .padding()
+                    .frame(width: 250.0, height: 100.0)
+                
+                SecureField("Password", text: $firebase.password)
+                    .padding()
+                    .frame(width: 250.0, height: 100.0)
+                
+                VStack {
+                    Button(action: {
+                        firebase.signUp { success, message in
+                            if success {
+                                print("enter success logic")
+                                successMessage = message
+                                showingSuccessAlert = true
+                                print("showingSuccessAlert is toggled")
+                                firebase.isLoggedIn = true
+                            } else {
+                                firebase.errorMessage = message                                }
+                        }
+                    }) {
+                        Text("Authenticate →")
+                    }
+                    .alert(
+                        "Success",
+                        isPresented: $showingSuccessAlert,
+                        presenting: successMessage
+                    ) { _ in
+                        Button("OK") {
+                            navigationTag = .userAllView
+                        }
+                    } message: { successMessage in
+                        Text(successMessage)
+                    }
+                    
+                    Text(firebase.errorMessage)
+                    
+                    Text("Already have an account?")
+                        .onTapGesture {
+                            
+                        }
+                }
+            }
+            .navigationDestination(for: NavigationTag.self) { tag in
+                switch tag {
+                case .userAllView:
+                    UserAllViewWrapper()
+                }
+            }
+        }
+    }
+    
 }
 
 struct homeView: View {
     @EnvironmentObject var feedModel: FeedModel
     
     var body: some View {
-        NavigationStack {
             VStack {
+                
+                HStack {
+                    Image("teegarden-logo-nobg")
+                        .resizable()
+                        .frame(width: 30, height: 30)
+                    Text("Teegarden")
+                        .font(.system(size: 25))
+                    Spacer()
+                }
+                
                 VStack {
                     
                     HStack {
-                        Text("Spatial Video")
+                        Text("Spatial Videos")
                             .font(.headline)
                             .padding(.leading)
                         Spacer()
                     }
                     
                     ScrollView(.horizontal, showsIndicators: true) {
-                        ForEach(feedModel.posts, id: \.id) { post in
-                            VStack {
-                                HStack {
-                                    Image(systemName:"person.crop.circle")
-                                    Text("username")
-                                }
-                                Model3D(url: post.modelURL) { model in
-                                    model
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fit)
-                                        .frame(width: 100, height: 100)
-                                } placeholder: {
-                                    ProgressView()
+                        HStack {
+                            ForEach(feedModel.posts, id: \.id) { post in
+                                VStack {
+                                    HStack {
+                                        Image(systemName:"person.crop.circle")
+                                        Text("username")
+                                    }
+                                    Model3D(url: post.modelURL) { model in
+                                        model
+                                            .resizable()
+                                            .aspectRatio(contentMode: .fit)
+                                            .frame(width: 100, height: 100)
+                                    } placeholder: {
+                                        ProgressView()
+                                    }
+                                    .padding()
+                                    Text(post.caption)
                                 }
                                 .padding()
-                                Text(post.caption)
                             }
-                            .padding()
                         }
                     }
                 }
@@ -129,38 +378,38 @@ struct homeView: View {
                 VStack {
                     
                     HStack {
-                        Text("Spatial Products")
+                        Text("Makers' Products")
                             .font(.headline)
                             .padding(.leading)
                         Spacer()
                     }
                     
                     ScrollView(.horizontal, showsIndicators: true) {
-                        ForEach(feedModel.posts, id: \.id) { post in
-                            VStack {
-                                HStack {
-                                    Image(systemName:"person.crop.circle")
-                                    Text("username")
-                                }
-                                Model3D(url: post.modelURL) { model in
-                                    model
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fit)
-                                        .frame(width: 100, height: 100)
-                                } placeholder: {
-                                    ProgressView()
+                        HStack {
+                            ForEach(feedModel.posts, id: \.id) { post in
+                                VStack {
+                                    HStack {
+                                        Image(systemName:"person.crop.circle")
+                                        Text("username")
+                                    }
+                                    Model3D(url: post.modelURL) { model in
+                                        model
+                                            .resizable()
+                                            .aspectRatio(contentMode: .fit)
+                                            .frame(width: 100, height: 100)
+                                    } placeholder: {
+                                        ProgressView()
+                                    }
+                                    .padding()
+                                    Text(post.caption)
                                 }
                                 .padding()
-                                Text(post.caption)
                             }
-                            .padding()
                         }
                     }
                 }
             }
             .padding(.leading, 20)
-        }
-        .navigationTitle("Teegarden")
     }
 }
     
@@ -200,127 +449,10 @@ struct Post: Identifiable {
 class FeedModel: ObservableObject {
     @Published var posts: [Post] = []
     
-    func addPost(_ post: Post) {
+    func addPost(_ post: Post, completion: @escaping (Bool) -> Void) {
         posts.insert(post, at: 0)
     }
-}
 
-class GoogleBooksAPIRepository: ObservableObject {
-    @Published var query: String = ""
-    @Published var booksResult: [Book] = []
-    
-    let endpoint = "https://www.googleapis.com/books/v1"
-
-    enum GoogleBooksAPIError : Error {
-        case invalidURLString
-        case notFound
-    }
-    
-    public func getBooks() async {
-            let data = try! await downloadData(urlString: "\(endpoint)/volumes?q=\(query)")
-            let json = JSON(data)
-            let result = await self.setVolume(json)
-            debugPrint(result.prefix(5))
-            DispatchQueue.main.async {
-                self.booksResult = result
-            }
-        }
-        
-        public func getBookById(bookId:String) async {
-            let data = try! await downloadData(urlString: "\(endpoint)/volumes/\(query)")
-            let json = JSON(data)
-            let result = await self.setVolume(json)
-            debugPrint(result.prefix(5))
-            DispatchQueue.main.async {
-                self.booksResult = result
-            }
-        }
-
-        private func setVolume(_ json: JSON) async -> [Book] {
-            let items = json["items"].array!
-            var books: [Book] = []
-            for item in items {
-                let bk = Book(
-                    id: item["id"].stringValue,
-                    volumeInfo: item["volumeInfo"],
-                    thumnailUrl: item["volumeInfo"]["imageLinks"]["thumbnail"].stringValue,
-                    title: item["volumeInfo"]["title"].stringValue,
-                    description: item["volumeInfo"]["description"].stringValue
-                )
-            }
-            return books
-        }
-
-        final func downloadData(urlString:String) async throws -> Data {
-            guard let url = URL(string: urlString) else {
-                throw GoogleBooksAPIError.invalidURLString
-            }
-            let (data,_) = try await URLSession.shared.data(from: url)
-            return data
-        }
-    }
-
-func url(s: String) -> String{
-    var i = s
-    debugPrint(i)
-    if(!i.hasPrefix("http")){return ""}
-    let insertIdx = i.index(i.startIndex, offsetBy: 4)
-    i.insert(contentsOf: "s", at: insertIdx)
-    return i
-}
-
-struct CubeToggle: View {
-    @Environment(\.openWindow) private var openWindow
-    @Environment(\.dismissWindow) private var dismissWindow
-
-    @State private var isShowingCube: Bool = false
-
-    var body: some View {
-        Toggle("View", isOn: $isShowingCube)
-            .onChange(of: isShowingCube) { newValue in
-                if newValue {
-                    openWindow(id: "CubeModelWindow")
-                } else {
-                    dismissWindow(id: "CubeModelWindow")
-                }
-            }
-            .toggleStyle(.button)
-    }
-}
-    
-struct CategorySelectionView: View {
-    var body: some View {
-        VStack(alignment: .leading) {
-            NavigationLink(destination: BookSearchView(googleBooksAPI: GoogleBooksAPIRepository())) {
-                Text("Books")
-                    .padding()
-                    .foregroundColor(Color.white)
-                    .cornerRadius(2)
-            }
-            
-            NavigationLink(destination: Add3DModelView()) {
-                Text("My Own 3D Model")
-                    .padding()
-                    .foregroundColor(Color.white)
-                    .cornerRadius(2)
-            }
-        }
-    }
-}
-    
-struct BookSearchView: View {
-    @ObservedObject var googleBooksAPI: GoogleBooksAPIRepository
-    @EnvironmentObject var viewModel: FirebaseViewModel
-    
-    var body: some View {
-        TextField("Search for books", text: $googleBooksAPI.query, onCommit: {
-            Task {
-                await googleBooksAPI.getBooks()
-            }
-        })
-        .textFieldStyle(RoundedBorderTextFieldStyle())
-        .padding()
-    }
 }
 
 struct USDZQLPreview: UIViewControllerRepresentable {
@@ -390,7 +522,6 @@ func saveModelToTemporaryFolder(modelURL: URL, overwrite: Bool) async -> Result<
         // If the user has agreed to overwrite, then delete the existing file first
         do {
             try fileManager.removeItem(at: destinationURL)
-            print("overwrote the file.")
         } catch {
             return .failure(error)
         }
@@ -399,7 +530,6 @@ func saveModelToTemporaryFolder(modelURL: URL, overwrite: Bool) async -> Result<
     // Copy the file from the source URL to the destination
     do {
         try fileManager.copyItem(at: modelURL, to: destinationURL)
-        print("destinationURL got and it is: \(destinationURL)")
         return .success(destinationURL)
         
     } catch {
@@ -418,18 +548,18 @@ func loadModelsFromTemporaryFolder() -> [URL] {
         let directoryContents = try FileManager.default.contentsOfDirectory(at: tmpModelFilesDirectory, includingPropertiesForKeys: nil)
         
         // Filter the directory contents for files with the 'usdz' file extension
-        let usdzFiles = directoryContents.filter { $0.pathExtension == "usdz" }
+        let allowedExtensions = ["usdz", "reality", "hevc"]
+        let spatialFiles = directoryContents.filter { allowedExtensions.contains($0.pathExtension) }
+
         
         // Return the array of 'usdz' file URLs
-        return usdzFiles
+        return spatialFiles
         
     } catch {
-        // Handle any errors
-        print("Error loading models from temporary folder: \(error)")
         return []
     }
 }
-
+// MARK: - Add3DModelView
 struct Add3DModelView: View {
     @State private var isPickerPresented = false
     @State private var selectedModelURL: URL?
@@ -437,6 +567,7 @@ struct Add3DModelView: View {
     @State private var savedModelURL: URL?
     @State private var captionText: String = ""
     @State private var showAlert = false
+    @State private var alertTitle = ""
     @State private var alertMessage = ""
     @State private var isLoadingModel = false
     @State private var isPreviewing = false
@@ -446,26 +577,20 @@ struct Add3DModelView: View {
     
     @EnvironmentObject var feedModel: FeedModel
     
-    let sample_3dmodelurl = URL(string: "https://developer.apple.com/augmented-reality/quick-look/models/teapot/teapot.usdz")!
-    
     func handleModelSelection(urls: [URL]) {
         guard let firstModelURL = urls.first else { return }
-        
-        print("firstModelURL is: \(firstModelURL)")
         
         // Start accessing the security-scoped resource
         let canAccess = firstModelURL.startAccessingSecurityScopedResource()
         
         if canAccess {
             Task {
-                print("Inside Task block")
                 // First, attempt to save the model without overwriting
                 let result = await saveModelToTemporaryFolder(modelURL: firstModelURL, overwrite: false)
                 
                 switch result {
                 case .success(let savedURL):
                     // Model saved successfully
-                    print("Model saved to: \(savedURL)")
                     self.savedModelURL = savedURL
                     isPreviewing = true
                 case .failure(let error):
@@ -484,13 +609,47 @@ struct Add3DModelView: View {
                 }
             }
         } else {
-            print("Don't have permission to access the file")
             DispatchQueue.main.async {
                 alertMessage = "You don't have permission to access the file."
                 showAlert = true
             }
         }
     }
+    
+    // MARK: - Posting Logic
+    private func postModel(with confirmedURL: URL) {
+        
+        let fileType = confirmedURL.pathExtension
+        
+        isLoadingModel = true
+        
+        FirebaseViewModel.shared.uploadModel(confirmedURL, fileType: fileType) { result in
+            isLoadingModel = false
+            switch result {
+                case .success(let storageURL):
+                    let newPost = Post(modelURL: storageURL, caption: captionText)
+                    feedModel.addPost(newPost) {
+                        if $0 {
+                            alertTitle = "Success"
+                            alertMessage = "Your post has been successfully added!"
+                        } else {
+                            alertTitle = "Failure"
+                            alertMessage = "Failed to add post. Please try again."
+                        }
+                        showAlert = true
+                        captionText = ""
+                        savedModelURL = nil
+                        selectedModelURL = nil
+                        confirmedModelURL = nil
+                    }
+                case .failure(let error):
+                    alertTitle = "Failure"
+                    alertMessage = "Error uploading model: \(error.localizedDescription)"
+                    showAlert = true
+            }
+        }
+    }
+    
     
     struct ModelPreviewView: View {
         @Binding var modelURL: URL?
@@ -534,6 +693,11 @@ struct Add3DModelView: View {
     }
 
     var body: some View {
+        
+        @State var isPostingSuccessful: Bool = false
+        
+        let allowedContentTypes: [UTType] = [.usdz, .reality, .movie]
+        
         NavigationStack {
             if let modelURL = confirmedModelURL {
                 VStack {
@@ -548,7 +712,7 @@ struct Add3DModelView: View {
                         if isLoadingModel {
                             ProgressView()
                                 .onAppear {
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 20) {
                                         if isLoadingModel {
                                             alertMessage = "Loading timeout. Please try a different model."
                                             showAlert = true
@@ -577,17 +741,22 @@ struct Add3DModelView: View {
                         HStack {
                             Spacer()
                             Button("Post →") {
-                                let newPost = Post(modelURL: confirmedModelURL!, caption: captionText)
-                                feedModel.addPost(newPost)
-                                alertMessage = "Your post has been successfully added!"
-                                showAlert = true
-                                captionText = ""
-                                savedModelURL = nil
-                                confirmedModelURL = nil
+                                if let confirmedURL = confirmedModelURL {
+                                    postModel(with: confirmedURL)
+                                    isPostingSuccessful = true
+                                    
+                                } else {
+                                    alertMessage = "Please confirm the model before posting."
+                                    showAlert = true
+                                }
                             }
                             .padding()
                             .alert(isPresented: $showAlert) {
-                                Alert(title: Text("Notification"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
+                                Alert(
+                                    title: Text(alertTitle),
+                                    message: Text(alertMessage),
+                                    dismissButton: .default(Text("OK"))
+                                )
                             }
                         }
                         .padding()
@@ -599,43 +768,19 @@ struct Add3DModelView: View {
                         .padding()
                     Button("Choose A Spatial File") {
                         isPickerPresented = true
-                        print("File picker presented")
                     }
                     .fileImporter(
                         isPresented: $isPickerPresented,
-                        allowedContentTypes: [UTType.usdz],
+                        allowedContentTypes: [.usdz, .reality, .movie],
                         allowsMultipleSelection: false
                     ) { result in
-                        print("File picker result received")
                         switch result {
                         case .success(let urls):
-                            print("Model URL selected: \(String(describing: urls.first))")
                             isLoadingModel = true
                             selectedModelURL = urls.first
                             handleModelSelection(urls: urls)
                             
-                            /*
-                             
-                             // Upload the selected model to Firebase Storage, allcubes and users/[UUID]/here!
-                             
-                             if let modelURL = savedModelURL {
-                             FirebaseViewModel.shared.uploadModel(modelURL) { result in
-                             isLoadingModel = false
-                             switch result {
-                             case .success(let url):
-                             self.savedModelURL = url
-                             // Now you have the Firebase Storage URL for the uploaded model
-                             // Use it as needed, for example, pass it to the 'modelURL' constant
-                             case .failure(let error):
-                             alertMessage = "Error uploading model: \(error.localizedDescription)"
-                             showAlert = true
-                             }
-                             }
-                             }
-                             */
-                            
                         case .failure(let error):
-                            print("Error selecting file: \(error.localizedDescription)")
                             alertMessage = "Error selecting file: \(error.localizedDescription)"
                             showAlert = true
                         }
@@ -686,15 +831,14 @@ struct Add3DModelView: View {
                         HStack {
                             Spacer()
                             Button("Post →") {
-                                let newPost = Post(modelURL: confirmedModelURL!, caption: captionText)
-                                feedModel.addPost(newPost)
-                                alertMessage = "Your post has been successfully added!"
-                                showAlert = true
-                                captionText = ""
-                                savedModelURL = nil
-                                selectedModelURL = nil
-                                confirmedModelURL = nil
+                                if let confirmedURL = confirmedModelURL {
+                                    postModel(with: confirmedURL)
+                                } else {
+                                    alertMessage = "Please confirm the model before posting."
+                                    showAlert = true
+                                }
                             }
+                            .padding()
                             .alert(isPresented: $showAlert) {
                                 Alert(title: Text("Notification"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
                             }
@@ -708,38 +852,120 @@ struct Add3DModelView: View {
     }
 }
 
+class GoogleBooksAPIRepository: ObservableObject {
+    @Published var query: String = ""
+    @Published var booksResult: [Book] = []
+    
+    let endpoint = "https://www.googleapis.com/books/v1"
 
-/*
- private var logInView: some View {
-         VStack {
-         TextField("Email", text: $viewModel.mail)
-         .keyboardType(.emailAddress)
-         .autocapitalization(.none)
-         .padding()
-         .frame(width: 250.0, height: 100.0)
-         
-         SecureField("Password", text: $viewModel.password)
-         .padding()
-         .frame(width: 250.0, height: 100.0)
-         
-         Text(viewModel.errorMessage)
-         
-         VStack {
-         Button(action: {
-         viewModel.login()
-         }) {
-         Text("Authenticate →")
-         }
-         
-         Text("Create an account?")
-         .foregroundColor(.black)
-         .onTapGesture {
-         viewModel.signUp()
-         }
-         }
-         }
-         }
- */
+    enum GoogleBooksAPIError : Error {
+        case invalidURLString
+        case notFound
+    }
+    
+    public func getBooks() async {
+            let data = try! await downloadData(urlString: "\(endpoint)/volumes?q=\(query)")
+            let json = JSON(data)
+            let result = await self.setVolume(json)
+            DispatchQueue.main.async {
+                self.booksResult = result
+            }
+        }
+        
+        public func getBookById(bookId:String) async {
+            let data = try! await downloadData(urlString: "\(endpoint)/volumes/\(query)")
+            let json = JSON(data)
+            let result = await self.setVolume(json)
+            DispatchQueue.main.async {
+                self.booksResult = result
+            }
+        }
+
+        private func setVolume(_ json: JSON) async -> [Book] {
+            let items = json["items"].array!
+            var books: [Book] = []
+            for item in items {
+                let bk = Book(
+                    id: item["id"].stringValue,
+                    volumeInfo: item["volumeInfo"],
+                    thumnailUrl: item["volumeInfo"]["imageLinks"]["thumbnail"].stringValue,
+                    title: item["volumeInfo"]["title"].stringValue,
+                    description: item["volumeInfo"]["description"].stringValue
+                )
+            }
+            return books
+        }
+
+        final func downloadData(urlString:String) async throws -> Data {
+            guard let url = URL(string: urlString) else {
+                throw GoogleBooksAPIError.invalidURLString
+            }
+            let (data,_) = try await URLSession.shared.data(from: url)
+            return data
+        }
+    }
+
+func url(s: String) -> String{
+    var i = s
+    if(!i.hasPrefix("http")){return ""}
+    let insertIdx = i.index(i.startIndex, offsetBy: 4)
+    i.insert(contentsOf: "s", at: insertIdx)
+    return i
+}
+
+struct CubeToggle: View {
+    @Environment(\.openWindow) private var openWindow
+    @Environment(\.dismissWindow) private var dismissWindow
+
+    @State private var isShowingCube: Bool = false
+
+    var body: some View {
+        Toggle("View", isOn: $isShowingCube)
+            .onChange(of: isShowingCube) { newValue in
+                if newValue {
+                    openWindow(id: "CubeModelWindow")
+                } else {
+                    dismissWindow(id: "CubeModelWindow")
+                }
+            }
+            .toggleStyle(.button)
+    }
+}
+    
+struct CategorySelectionView: View {
+    var body: some View {
+        VStack(alignment: .leading) {
+            NavigationLink(destination: BookSearchView(googleBooksAPI: GoogleBooksAPIRepository())) {
+                Text("Books")
+                    .padding()
+                    .foregroundColor(Color.white)
+                    .cornerRadius(2)
+            }
+            
+            NavigationLink(destination: Add3DModelView()) {
+                Text("My Own 3D Model")
+                    .padding()
+                    .foregroundColor(Color.white)
+                    .cornerRadius(2)
+            }
+        }
+    }
+}
+    
+struct BookSearchView: View {
+    @ObservedObject var googleBooksAPI: GoogleBooksAPIRepository
+    @EnvironmentObject var viewModel: FirebaseViewModel
+    
+    var body: some View {
+        TextField("Search for books", text: $googleBooksAPI.query, onCommit: {
+            Task {
+                await googleBooksAPI.getBooks()
+            }
+        })
+        .textFieldStyle(RoundedBorderTextFieldStyle())
+        .padding()
+    }
+}
 
 /*
  #Preview {

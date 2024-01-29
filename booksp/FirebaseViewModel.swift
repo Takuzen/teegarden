@@ -21,7 +21,7 @@ class FirebaseViewModel: ObservableObject {
     @Published var favoriteBooks: [Book] = []
     
     // Sign up function
-    func signUp() {
+    func signUp(completion: @escaping (Bool, String) -> Void) {
         Auth.auth().createUser(withEmail: mail, password: password) { authResult, error in
             if let error = error {
                 self.errorMessage = error.localizedDescription
@@ -32,17 +32,21 @@ class FirebaseViewModel: ObservableObject {
     }
 
     // Login function
-    func login() {
+    func login(completion: @escaping (Bool, String) -> Void) {
         Auth.auth().signIn(withEmail: mail, password: password) { authResult, error in
             if let error = error {
-                self.errorMessage = error.localizedDescription
+                // If there's an error, pass false and the error message to the completion handler.
+                completion(false, error.localizedDescription)
             } else {
+                // If login is successful, update the isLoggedIn state and pass true to the completion handler.
                 self.isLoggedIn = self.isUserLoggedIn()
-                self.errorMessage = "User signed in successfully"
+                // Pass a custom success message or use a default message
+                let successMessage = "Signed In Successfully!"
+                completion(true, successMessage)
             }
         }
     }
-
+    
     // Check if user is signed in
     func isUserLoggedIn() -> Bool {
         return Auth.auth().currentUser != nil
@@ -117,24 +121,28 @@ class FirebaseViewModel: ObservableObject {
         }
     }
     
-    func uploadModel(_ url: URL, completion: @escaping (Result<URL, Error>) -> Void) {
+    func uploadModel(_ url: URL, fileType: String, completion: @escaping (Result<URL, Error>) -> Void) {
         guard let user = Auth.auth().currentUser else {
             completion(.failure(NSError(domain: "User not authenticated", code: 401, userInfo: nil)))
             return
         }
-        
-        let storageRef = Storage.storage().reference().child("models").child("\(user.uid)/\(UUID().uuidString).usdz")
-        
+
+        let errorFileExtension = "unknown_extension"
+
+        let fileExtension = url.pathExtension.isEmpty ? errorFileExtension : url.pathExtension
+
+        let storageRef = Storage.storage().reference().child("SpatialFiles").child(fileType).child("\(user.uid)/\(UUID().uuidString).\(fileExtension)")
+
         let uploadTask = storageRef.putFile(from: url, metadata: nil) { metadata, error in
             if let error = error {
                 completion(.failure(error))
-            } else {
-                storageRef.downloadURL { url, error in
-                    if let url = url {
-                        completion(.success(url))
-                    } else if let error = error {
-                        completion(.failure(error))
-                    }
+                return
+            }
+            storageRef.downloadURL { url, error in
+                if let url = url {
+                    completion(.success(url))
+                } else if let error = error {
+                    completion(.failure(error))
                 }
             }
         }

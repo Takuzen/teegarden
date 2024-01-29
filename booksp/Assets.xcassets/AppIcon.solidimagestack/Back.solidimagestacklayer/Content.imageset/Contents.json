@@ -1,7 +1,8 @@
 {
   "images" : [
     {
-      "idiom" : "reality",
+      "filename" : "1024white.jpeg",
+      "idiom" : "vision",
       "scale" : "2x"
     }
   ],

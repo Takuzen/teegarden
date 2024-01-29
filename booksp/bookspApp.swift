@@ -34,12 +34,6 @@ struct bookspApp: App {
             WebViewWindow()
         }.defaultSize(CGSize(width: 1920, height: 1080))
         
-        WindowGroup(id: "CubeModelWindow") {
-            CubeModelView()
-        }
-        .windowStyle(.volumetric)
-        .defaultSize(width: 0.6, height: 0.6, depth: 0.6, in: .meters)
-        
         ImmersiveSpace(id: "ImmersiveSpace_Progressive") {
             ImmersiveView()
                 .environmentObject(FirebaseViewModel.shared)
