@@ -389,7 +389,10 @@ struct homeView: View {
                                         }
                                     }
                                     
-                                    Text("Caption here") // Replace with your logic to get the caption
+                                    Text("Caption here")
+                                        .lineLimit(1)
+                                        .truncationMode(.tail)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
                                 }
                                 .padding()
                             }
@@ -442,6 +445,9 @@ struct homeView: View {
                                     }
                                     
                                     Text("Caption here") // Replace with your logic to get the caption
+                                        .lineLimit(1)
+                                        .truncationMode(.tail)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
                                 }
                                 .padding()
                             }
