@@ -332,7 +332,9 @@ struct ContentView: View {
 // MARK: - ContentView END
 
 struct homeView: View {
-    @EnvironmentObject var feedModel: FeedModel
+    @ObservedObject var firebaseViewModel = FirebaseViewModel()
+    
+    @State private var fileURLs: [URL] = []
     
     var body: some View {
             VStack {
@@ -357,26 +359,44 @@ struct homeView: View {
                     
                     ScrollView(.horizontal, showsIndicators: true) {
                         HStack {
-                            ForEach(feedModel.posts, id: \.id) { post in
+                            ForEach(firebaseViewModel.fileURLs, id: \.self) { fileURL in
                                 VStack {
                                     HStack {
-                                        Image(systemName:"person.crop.circle")
-                                        Text("username")
+                                        Image(systemName: "person.crop.circle")
+                                        Text("username") // Replace with your logic to get the username
                                     }
-                                    Model3D(url: post.modelURL) { model in
-                                        model
-                                            .resizable()
-                                            .aspectRatio(contentMode: .fit)
-                                            .frame(width: 100, height: 100)
-                                    } placeholder: {
-                                        ProgressView()
+                                    
+                                    if fileURL.pathExtension.lowercased() == "mov" {
+                                        // If it's a video, display the thumbnail image
+                                        AsyncImage(url: fileURL) { image in
+                                            image
+                                                .resizable()
+                                                .aspectRatio(contentMode: .fit)
+                                                .frame(width: 100, height: 100)
+                                        } placeholder: {
+                                            ProgressView()
+                                        }
+                                    } else {
+                                        // If it's not a video, display the Model3D
+                                        // You might need a way to get the model URL from the fileURL
+                                        Model3D(url: fileURL) { model in
+                                            model
+                                                .resizable()
+                                                .aspectRatio(contentMode: .fit)
+                                                .frame(width: 100, height: 100)
+                                        } placeholder: {
+                                            ProgressView()
+                                        }
                                     }
-                                    .padding()
-                                    Text(post.caption)
+                                    
+                                    Text("Caption here") // Replace with your logic to get the caption
                                 }
                                 .padding()
                             }
                         }
+                    }
+                    .onAppear {
+                        firebaseViewModel.loadData()
                     }
                 }
                 
@@ -391,26 +411,44 @@ struct homeView: View {
                     
                     ScrollView(.horizontal, showsIndicators: true) {
                         HStack {
-                            ForEach(feedModel.posts, id: \.id) { post in
+                            ForEach(firebaseViewModel.fileURLs, id: \.self) { fileURL in
                                 VStack {
                                     HStack {
-                                        Image(systemName:"person.crop.circle")
-                                        Text("username")
+                                        Image(systemName: "person.crop.circle")
+                                        Text("username") // Replace with your logic to get the username
                                     }
-                                    Model3D(url: post.modelURL) { model in
-                                        model
-                                            .resizable()
-                                            .aspectRatio(contentMode: .fit)
-                                            .frame(width: 100, height: 100)
-                                    } placeholder: {
-                                        ProgressView()
+                                    
+                                    if fileURL.pathExtension.lowercased() == "mov" {
+                                        // If it's a video, display the thumbnail image
+                                        AsyncImage(url: fileURL) { image in
+                                            image
+                                                .resizable()
+                                                .aspectRatio(contentMode: .fit)
+                                                .frame(width: 100, height: 100)
+                                        } placeholder: {
+                                            ProgressView()
+                                        }
+                                    } else {
+                                        // If it's not a video, display the Model3D
+                                        // You might need a way to get the model URL from the fileURL
+                                        Model3D(url: fileURL) { model in
+                                            model
+                                                .resizable()
+                                                .aspectRatio(contentMode: .fit)
+                                                .frame(width: 100, height: 100)
+                                        } placeholder: {
+                                            ProgressView()
+                                        }
                                     }
-                                    .padding()
-                                    Text(post.caption)
+                                    
+                                    Text("Caption here") // Replace with your logic to get the caption
                                 }
                                 .padding()
                             }
                         }
+                    }
+                    .onAppear {
+                        firebaseViewModel.loadData()
                     }
                 }
             }
@@ -449,6 +487,7 @@ struct Post: Identifiable {
     var id = UUID()
     var modelURL: URL
     var caption: String
+    var thumbnailURL: URL?
 }
 
 class FeedModel: ObservableObject {
@@ -498,8 +537,7 @@ enum FileSaveError: Error {
     case fileExists
 }
 
-func saveModelToTemporaryFolder(modelURL: URL, overwrite: Bool) async -> Result<URL, Error> {
-    
+func saveModelToTemporaryFolder(modelURL: URL, thumbnailURL: URL?, overwrite: Bool) async -> Result<(model: URL, thumbnail: URL?), Error> {
     let fileManager = FileManager.default
     
     // Get the documents directory URL
@@ -508,6 +546,7 @@ func saveModelToTemporaryFolder(modelURL: URL, overwrite: Bool) async -> Result<
     // Create a URL for the "TmpModelFiles" directory
     let tmpModelFilesDirectory = documentsDirectory.appendingPathComponent("TmpModelFiles")
     
+    // Create the "TmpModelFiles" directory if it doesn't exist
     if !fileManager.fileExists(atPath: tmpModelFilesDirectory.path) {
         do {
             try fileManager.createDirectory(at: tmpModelFilesDirectory, withIntermediateDirectories: true)
@@ -515,33 +554,64 @@ func saveModelToTemporaryFolder(modelURL: URL, overwrite: Bool) async -> Result<
             return .failure(error)
         }
     }
-        
-    // Define the destination URL for the model file
-    let destinationURL = tmpModelFilesDirectory.appendingPathComponent(modelURL.lastPathComponent)
     
-    // Check if the file already exists at the destination
-    if fileManager.fileExists(atPath: destinationURL.path) {
+    // Define the destination URL for the model file
+    let modelDestinationURL = tmpModelFilesDirectory.appendingPathComponent(modelURL.lastPathComponent)
+    
+    // Check if the model file exists
+    if fileManager.fileExists(atPath: modelDestinationURL.path) {
+        // If overwrite is false, return failure
         guard overwrite else {
             return .failure(FileSaveError.fileExists)
         }
-        // If the user has agreed to overwrite, then delete the existing file first
+        // If overwrite is true, remove the existing file
         do {
-            try fileManager.removeItem(at: destinationURL)
+            try fileManager.removeItem(at: modelDestinationURL)
         } catch {
             return .failure(error)
         }
     }
-        
-    // Copy the file from the source URL to the destination
+    
+    // Copy the model file to the destination
     do {
-        try fileManager.copyItem(at: modelURL, to: destinationURL)
-        return .success(destinationURL)
-        
+        try fileManager.copyItem(at: modelURL, to: modelDestinationURL)
     } catch {
         return .failure(error)
     }
+    
+    var tmpThumbnailURL: URL?
+    
+    // Process thumbnailURL if it's not nil
+    if let thumbnailURL = thumbnailURL {
+        let thumbnailDestinationURL = tmpModelFilesDirectory.appendingPathComponent(thumbnailURL.lastPathComponent)
         
+        // Check if the thumbnail file exists
+        if fileManager.fileExists(atPath: thumbnailDestinationURL.path) {
+            // If overwrite is false, return failure
+            guard overwrite else {
+                return .failure(FileSaveError.fileExists)
+            }
+            // If overwrite is true, remove the existing file
+            do {
+                try fileManager.removeItem(at: thumbnailDestinationURL)
+            } catch {
+                return .failure(error)
+            }
+        }
+        
+        // Copy the thumbnail file to the destination
+        do {
+            try fileManager.copyItem(at: thumbnailURL, to: thumbnailDestinationURL)
+            tmpThumbnailURL = thumbnailDestinationURL
+        } catch {
+            return .failure(error)
+        }
+    }
+    
+    // Return success with the URL of the model and the thumbnail (if it exists)
+    return .success((model: modelDestinationURL, thumbnail: tmpThumbnailURL))
 }
+
 
 func loadModelsFromTemporaryFolder() -> [URL] {
     // Get the documents directory URL
@@ -555,7 +625,6 @@ func loadModelsFromTemporaryFolder() -> [URL] {
         // Filter the directory contents for files with the 'usdz' file extension
         let allowedExtensions = ["usdz", "reality", "mov"]
         let spatialFiles = directoryContents.filter { allowedExtensions.contains($0.pathExtension) }
-
         
         // Return the array of 'usdz' file URLs
         return spatialFiles
@@ -569,7 +638,9 @@ struct Add3DModelView: View {
     @State private var isPickerPresented = false
     @State private var selectedModelURL: URL?
     @State private var confirmedModelURL: URL?
+    @State private var confirmedThumbnailURL: URL?
     @State private var savedModelURL: URL?
+    @State private var savedThumbnailURL: URL?
     @State private var captionText: String = ""
     @State private var showAlert = false
     @State private var alertTitle = ""
@@ -578,15 +649,14 @@ struct Add3DModelView: View {
     @State private var isPreviewing = false
     @State private var isPostingSuccessful: Bool = false
     @State private var showOverwriteAlert = false
+    @State private var shouldOverwriteFile = false
     @State private var showErrorAlert = false
     @State private var errorMessage = ""
     @State private var thumbnailURL: URL?
     
-    @EnvironmentObject var feedModel: FeedModel
-    
     let allowedContentTypes: [UTType] = [.usdz, .reality, .movie]
     
-    func handleModelSelection(urls: [URL]) {
+    func handleModelSelection(urls: [URL], shouldOverwrite: Bool = false) {
         print("handleModelSelection called with URLs: \(urls)")
         guard let firstModelURL = urls.first else {
             print("No URL found in the array.")
@@ -604,7 +674,7 @@ struct Add3DModelView: View {
                         self.thumbnailURL = thumbnailURL
                         if let thumbnailURL = thumbnailURL {
                             print("Thumbnail URL has been set!")
-                            self.processModel(thumbnailURL: thumbnailURL, originalURL: firstModelURL)
+                            self.processModel(thumbnailURL: thumbnailURL, originalURL: firstModelURL, shouldOverwrite: shouldOverwrite)
                         } else {
                             print("Failed to set thumbnail URL.")
                             self.showAlertWith(message: "Failed to generate thumbnail for the video.")
@@ -612,7 +682,7 @@ struct Add3DModelView: View {
                     }
                 }
             } else {
-                processModel(thumbnailURL: nil, originalURL: firstModelURL)
+                processModel(thumbnailURL: thumbnailURL, originalURL: firstModelURL, shouldOverwrite: shouldOverwrite)
             }
         } else {
             DispatchQueue.main.async {
@@ -622,17 +692,25 @@ struct Add3DModelView: View {
         }
     }
 
-    func processModel(thumbnailURL: URL?, originalURL: URL) {
+    func processModel(thumbnailURL: URL?, originalURL: URL, shouldOverwrite: Bool) {
         Task {
-            let modelURL = thumbnailURL ?? originalURL
-            let result = await saveModelToTemporaryFolder(modelURL: modelURL, overwrite: false)
+            let thumbnailUrlReadyForSavingToTmp = thumbnailURL
+            let modelUrlReadyForSavingToTmp = originalURL
+            print(modelUrlReadyForSavingToTmp)
+            print(thumbnailUrlReadyForSavingToTmp)
+            let result = await saveModelToTemporaryFolder(modelURL: modelUrlReadyForSavingToTmp, thumbnailURL: thumbnailUrlReadyForSavingToTmp, overwrite: shouldOverwrite)
+            print(result)
             
             switch result {
             case .success(let savedURL):
-                DispatchQueue.main.async {
-                    self.savedModelURL = savedURL
+                DispatchQueue.main.async { /// what does this mean DispatchQue.main.async, async and await are not understood.
+                    print(savedURL.model)
+                    print(savedURL.thumbnail)
+                    self.savedModelURL = savedURL.model
+                    self.savedThumbnailURL = savedURL.thumbnail
                     self.isPreviewing = true
                     print("isPreviewing = true")
+                    shouldOverwriteFile = false
                 }
             case .failure(let error):
                 DispatchQueue.main.async {
@@ -642,6 +720,7 @@ struct Add3DModelView: View {
                         self.alertMessage = error.localizedDescription
                         self.showAlert = true
                     }
+                    shouldOverwriteFile = false
                 }
             }
         }
@@ -696,52 +775,78 @@ struct Add3DModelView: View {
         }
     }
     
-    private func postModel(with confirmedURL: URL) {
-        let fileType = confirmedURL.pathExtension
-        
+    private func postModel(with confirmedURL: URL, thumbnailURL: URL?) {
+        let fileType = confirmedURL.pathExtension.lowercased()
         isLoadingModel = true
         
-        FirebaseViewModel.shared.uploadModel(confirmedURL, fileType: fileType) { result in
+        FirebaseViewModel.shared.uploadCube(modelURL: confirmedURL, thumbnailURL: thumbnailURL, fileType: fileType) { result in
             isLoadingModel = false
             switch result {
-            case .success(let storageURL):
-                let newPost = Post(modelURL: storageURL, caption: captionText)
-                feedModel.addPost(newPost) {
-                    if $0 {
-                        alertTitle = "Success"
-                        alertMessage = "Your post has been successfully added!"
-                    } else {
-                        alertTitle = "Failure"
-                        alertMessage = "Failed to add post. Please try again."
-                    }
-                    showAlert = true
-                    captionText = ""
-                    savedModelURL = nil
-                    selectedModelURL = nil
-                    confirmedModelURL = nil
-                }
+            case .success(let urls):
+                print("Model and thumbnail uploaded successfully. Model URL: \(urls.modelURL), Thumbnail URL: \(String(describing: urls.thumbnailURL))")
             case .failure(let error):
-                alertTitle = "Failure"
-                alertMessage = "Error uploading model: \(error.localizedDescription)"
-                showAlert = true
+                print("Upload failed with error: \(error.localizedDescription)")
+                // Handle the error, update UI, etc.
             }
         }
     }
     
+    /**
+     
+     private func postModel(with confirmedURL: URL, thumbnailURL: URL?) {
+
+         let fileType = confirmedURL.pathExtension.lowercased()
+         
+         isLoadingModel = true
+         
+         FirebaseViewModel.shared.uploadCube(modelURL: confirmedURL, thumbnailURL: thumbnailURL, fileType: fileType) { result in
+     
+             self.isLoadingModel = false
+             switch result {
+             case .success(let (modelStorageURL, thumbnailStorageURL)):
+                 let newPost = Post(modelURL: modelStorageURL, caption: self.captionText, thumbnailURL: thumbnailStorageURL)
+                 self.feedModel.addPost(newPost) { success in
+                     if success {
+                         self.alertTitle = "Success"
+                         self.alertMessage = "Your post has been successfully added!"
+                     } else {
+                         self.alertTitle = "Failure"
+                         self.alertMessage = "Failed to add post. Please try again."
+                     }
+                     self.showAlert = true
+                     self.captionText = ""
+                     self.savedModelURL = nil
+                     self.selectedModelURL = nil
+                     self.confirmedModelURL = nil
+                 }
+             case .failure(let error):
+                 self.alertTitle = "Failure"
+                 self.alertMessage = "Error uploading model: \(error.localizedDescription)"
+                 self.showAlert = true
+             }
+         }
+     }
+     
+     **/
+
     struct ModelPreviewView: View {
-        @Binding var modelURL: URL?
-        @Binding var confirmedModelURL: URL?
+        @Binding var savedModelURL: URL?
+        @Binding var savedThumbnailURL: URL?
         @Binding var isPreviewing: Bool
-        @Binding var thumbnailURL: URL?
+        @Binding var confirmedModelURL: URL?
+        @Binding var confirmedThumbnailURL: URL?
         
         var body: some View {
             VStack {
-                if let url = modelURL {
+                if let url = savedModelURL {
                     NavigationView {
                         VStack {
                             
-                            Button(action: { isPreviewing = false }) {
-                                Label("", systemImage: "xmark")
+                            HStack {
+                                Spacer()
+                                Button(action: { isPreviewing = false }) {
+                                    Label("", systemImage: "xmark")
+                                }
                             }
                             
                             if url.pathExtension.lowercased() == "usdz" || url.pathExtension.lowercased() == "reality" {
@@ -752,23 +857,10 @@ struct Add3DModelView: View {
                                         .frame(width: 200, height: 200)
                                     
                                 } placeholder: {
-                                    if isPreviewing {
                                         ProgressView()
-                                        /*
-                                            .onAppear {
-                                                DispatchQueue.main.asyncAfter(deadline: .now() + 20) {
-                                                    if isLoadingModel {
-                                                        alertMessage = "Loading timeout. Please try a different model."
-                                                        showAlert = true
-                                                        isLoadingModel = false
-                                                    }
-                                                }
-                                            }
-                                         */
-                                    }
                                 }
                                 .padding()
-                            } else if url.pathExtension.lowercased() == "mov", let thumbnail = thumbnailURL {
+                            } else if url.pathExtension.lowercased() == "mov", let thumbnail = savedThumbnailURL {
                                 AsyncImage(url: thumbnail) { image in
                                     image
                                         .resizable()
@@ -782,7 +874,8 @@ struct Add3DModelView: View {
                             }
                             
                             Button("Confirm") {
-                                confirmedModelURL = modelURL
+                                confirmedModelURL = savedModelURL
+                                confirmedThumbnailURL = savedThumbnailURL
                                 isPreviewing = false
                             }
                             .padding()
@@ -798,7 +891,7 @@ struct Add3DModelView: View {
                         }
                     }
                 } else {
-                    Text("Hello, no URL available")
+                    Text("Hello, no spatial contents available.")
                 }
             }
         }
@@ -808,12 +901,12 @@ struct Add3DModelView: View {
         NavigationStack {
             if let modelURL = confirmedModelURL {
                 VStack {
-                    if modelURL.pathExtension.lowercased() == "mov", let thumbnail = thumbnailURL {
-                        AsyncImage(url: thumbnailURL) { image in
+                    if modelURL.pathExtension.lowercased() == "mov", let thumbnail = confirmedThumbnailURL {
+                        AsyncImage(url: thumbnail) { image in
                             image
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)
-                                .frame(width: 200, height: 200)
+                                .frame(width: 300, height: 300)
                         } placeholder: {
                             ProgressView()
                         }
@@ -841,10 +934,14 @@ struct Add3DModelView: View {
                         .padding()
                     }
                     
+                    /*
+                    
                     Button("Re-select") {
                         isPickerPresented = true
                     }
                     .padding()
+                     
+                    */
                     
                     TextField("Write a caption...", text: $captionText)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -854,7 +951,7 @@ struct Add3DModelView: View {
                         Spacer()
                         Button("Post →") {
                             if let confirmedURL = confirmedModelURL {
-                                postModel(with: confirmedURL)
+                                postModel(with: confirmedURL, thumbnailURL: confirmedThumbnailURL)
                                 isPostingSuccessful = true
                             } else {
                                 alertMessage = "Please confirm the model before posting."
@@ -869,6 +966,7 @@ struct Add3DModelView: View {
                                 dismissButton: .default(Text("OK"))
                             )
                         }
+                        .padding()
                     }
                     .padding()
                 }
@@ -904,7 +1002,8 @@ struct Add3DModelView: View {
                         Spacer()
                         Button("Post →") {
                             if let confirmedURL = confirmedModelURL {
-                                postModel(with: confirmedURL)
+                                postModel(with: confirmedURL, thumbnailURL: confirmedThumbnailURL)
+                                isPostingSuccessful = true
                             } else {
                                 alertMessage = "Please confirm the model before posting."
                                 showAlert = true
@@ -912,7 +1011,28 @@ struct Add3DModelView: View {
                         }
                         .padding()
                         .alert(isPresented: $showAlert) {
+                            Alert(
+                                title: Text(alertTitle),
+                                message: Text(alertMessage),
+                                dismissButton: .default(Text("OK"))
+                            )
+                        }
+
+                        .padding()
+                        .alert(isPresented: $showAlert) {
                             Alert(title: Text("Notification"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
+                        }
+                        .alert(isPresented: $showOverwriteAlert) {
+                            Alert(
+                                title: Text("The file already exists."),
+                                primaryButton: .destructive(Text("Overwrite")) {
+                                    // User confirms to overwrite the file
+                                    shouldOverwriteFile = true
+                                    // Call the function to handle the model selection again with overwrite allowed
+                                    if let selectedModelURL = selectedModelURL {
+                                        handleModelSelection(urls: [selectedModelURL], shouldOverwrite: true)
+                                    }
+                                },secondaryButton: .cancel(Text("Cancel")))
                         }
                     }
                     .padding()
@@ -922,14 +1042,16 @@ struct Add3DModelView: View {
         .navigationTitle("Post")
         .sheet(isPresented: $isPreviewing) {
             ModelPreviewView(
-                modelURL: $selectedModelURL,
-                confirmedModelURL: $confirmedModelURL,
-                isPreviewing: $isPreviewing,
-                thumbnailURL: $thumbnailURL
+                    savedModelURL: $savedModelURL,
+                    savedThumbnailURL: $savedThumbnailURL,
+                    isPreviewing: $isPreviewing,
+                    confirmedModelURL: $confirmedModelURL, // Pass the binding
+                    confirmedThumbnailURL: $confirmedThumbnailURL
             )
         }
     }
 }
+
 
 class GoogleBooksAPIRepository: ObservableObject {
     @Published var query: String = ""
