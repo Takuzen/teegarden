@@ -138,6 +138,8 @@ class ImageViewModel {
     }
 }
 
+/*
+
 struct ImmersiveView: View {
     @State var model = ImageViewModel()
     @EnvironmentObject var feedModel: FeedModel
@@ -171,7 +173,7 @@ struct ImmersiveView: View {
         .gesture(dragGesture)
     }
     
-/*
+
             content.remove(content.entities[2])
             content.add(model.anchorEntity)
             content.add(
@@ -181,7 +183,7 @@ struct ImmersiveView: View {
                     }
                 )
             )
-*/
+
     
     var dragGesture: some Gesture {
         DragGesture()
@@ -205,6 +207,8 @@ struct ImmersiveView: View {
             }
     }
 }
+
+*/
 
 //#Preview {
 //    ImmersiveView()

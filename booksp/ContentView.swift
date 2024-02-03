@@ -100,6 +100,20 @@ struct ContentView: View {
             }
         }
     }
+    
+    struct SupportViewWrapper: View {
+        var body: some View {
+            NavigationStack {
+                SupportView()
+            }
+        }
+    }
+    
+    struct SupportView: View {
+        var body: some View {
+            Text("takuzen0430@gmail.com")
+        }
+    }
     // MARK: - LogInView
     struct logInViewToProfile: View {
         
@@ -331,134 +345,71 @@ struct ContentView: View {
 
 // MARK: - ContentView END
 
+struct DetailView: View {
+    let metadata: ThumbnailMetadata
+
+    var body: some View {
+        // Layout for displaying .mov file and additional information
+        Text("Detail view for \(metadata.url)")
+    }
+}
+
 struct homeView: View {
     @ObservedObject var firebaseViewModel = FirebaseViewModel()
     
     @State private var fileURLs: [URL] = []
-    
+        
     var body: some View {
+        VStack {
+            
+            HStack {
+                Image("teegarden-logo-nobg")
+                    .resizable()
+                    .frame(width: 30, height: 30)
+                Text("Teegarden")
+                    .font(.system(size: 25))
+                Spacer()
+            }
+            
             VStack {
                 
                 HStack {
-                    Image("teegarden-logo-nobg")
-                        .resizable()
-                        .frame(width: 30, height: 30)
-                    Text("Teegarden")
-                        .font(.system(size: 25))
+                    Text("Spatial Videos")
+                        .font(.headline)
+                        .padding(.leading)
                     Spacer()
                 }
                 
-                VStack {
-                    
-                    HStack {
-                        Text("Spatial Videos")
-                            .font(.headline)
-                            .padding(.leading)
-                        Spacer()
-                    }
-                    
-                    ScrollView(.horizontal, showsIndicators: true) {
-                        HStack {
-                            ForEach(firebaseViewModel.fileURLs, id: \.self) { fileURL in
-                                VStack {
-                                    HStack {
-                                        Image(systemName: "person.crop.circle")
-                                        Text("username") // Replace with your logic to get the username
-                                    }
-                                    
-                                    if fileURL.pathExtension.lowercased() == "mov" {
-                                        // If it's a video, display the thumbnail image
-                                        AsyncImage(url: fileURL) { image in
-                                            image
-                                                .resizable()
-                                                .aspectRatio(contentMode: .fit)
-                                                .frame(width: 100, height: 100)
-                                        } placeholder: {
-                                            ProgressView()
-                                        }
-                                    } else {
-                                        // If it's not a video, display the Model3D
-                                        // You might need a way to get the model URL from the fileURL
-                                        Model3D(url: fileURL) { model in
-                                            model
-                                                .resizable()
-                                                .aspectRatio(contentMode: .fit)
-                                                .frame(width: 100, height: 100)
-                                        } placeholder: {
-                                            ProgressView()
-                                        }
-                                    }
-                                    
-                                    Text("Caption here")
-                                        .lineLimit(1)
-                                        .truncationMode(.tail)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
+                ScrollView {
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 20) {
+                        ForEach(firebaseViewModel.thumbnailsMetadata, id: \.url) { metadata in
+                            NavigationLink(destination: DetailView(metadata: metadata)) {
+                                AsyncImage(url: URL(string: metadata.url)) { image in
+                                    image
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                } placeholder: {
+                                    Color.gray
                                 }
-                                .padding()
+                                .frame(width: 100, height: 100)
+                                .clipShape(RoundedRectangle(cornerRadius: 10))
                             }
                         }
                     }
-                    .onAppear {
-                        firebaseViewModel.loadData()
-                    }
                 }
-                
-                VStack {
-                    
-                    HStack {
-                        Text("Makers' Products")
-                            .font(.headline)
-                            .padding(.leading)
-                        Spacer()
-                    }
-                    
-                    ScrollView(.horizontal, showsIndicators: true) {
-                        HStack {
-                            ForEach(firebaseViewModel.fileURLs, id: \.self) { fileURL in
-                                VStack {
-                                    HStack {
-                                        Image(systemName: "person.crop.circle")
-                                        Text("username") // Replace with your logic to get the username
-                                    }
-                                    
-                                    if fileURL.pathExtension.lowercased() == "mov" {
-                                        // If it's a video, display the thumbnail image
-                                        AsyncImage(url: fileURL) { image in
-                                            image
-                                                .resizable()
-                                                .aspectRatio(contentMode: .fit)
-                                                .frame(width: 100, height: 100)
-                                        } placeholder: {
-                                            ProgressView()
-                                        }
-                                    } else {
-                                        // If it's not a video, display the Model3D
-                                        // You might need a way to get the model URL from the fileURL
-                                        Model3D(url: fileURL) { model in
-                                            model
-                                                .resizable()
-                                                .aspectRatio(contentMode: .fit)
-                                                .frame(width: 100, height: 100)
-                                        } placeholder: {
-                                            ProgressView()
-                                        }
-                                    }
-                                    
-                                    Text("Caption here") // Replace with your logic to get the caption
-                                        .lineLimit(1)
-                                        .truncationMode(.tail)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                }
-                                .padding()
-                            }
+                .onAppear {
+                    firebaseViewModel.fetchThumbnailsMetadata() { result in
+                        switch result {
+                        case .success(let thumbnails):
+                            print("Successfully fetched thumbnails: \(thumbnails)")
+                        case .failure(let error):
+                            print("Error fetching thumbnails: \(error)")
                         }
                     }
-                    .onAppear {
-                        firebaseViewModel.loadData()
-                    }
                 }
+                .padding()
             }
-            .padding(.leading, 20)
+        }
     }
 }
     

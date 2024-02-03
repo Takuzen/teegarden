@@ -18,6 +18,7 @@ class ViewModel {
         case home = "home"
         case profile = "profile"
         case post = "post"
+        case question = "support"
 
         var id: String {
             return rawValue
@@ -31,6 +32,8 @@ class ViewModel {
                 return "Profile"
             case .post:
                 return "Post"
+            case .question:
+                return "Support"
             }
         }
 
@@ -42,8 +45,9 @@ class ViewModel {
                 return "person.crop.circle"
             case .post:
                 return "plus"
+            case .question:
+                return "questionmark"
             }
         }
     }
-
 }
