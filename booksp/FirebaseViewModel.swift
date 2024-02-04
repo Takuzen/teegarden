@@ -81,7 +81,7 @@ class FirebaseViewModel: ObservableObject {
         let errorFileExtension = "unknown_extension"
         let fileExtension = modelURL.pathExtension.isEmpty ? errorFileExtension : modelURL.pathExtension
         let uniqueFolderName = UUID().uuidString
-        let modelStoragePath = "SpatialFiles/\(fileType)/\(uniqueFolderName).\(fileExtension)"
+        let modelStoragePath = "SpatialFiles/\(fileType)/\(uniqueFolderName)/\(uniqueFolderName).\(fileExtension)"
         let modelStorageRef = Storage.storage().reference().child(modelStoragePath)
         
         modelStorageRef.putFile(from: modelURL, metadata: nil) { metadata, error in
@@ -134,9 +134,9 @@ class FirebaseViewModel: ObservableObject {
         }
     }
     
-    @Published var thumbnailsMetadata: [ThumbnailMetadata] = []
+    @Published var thumbnailsMetadata: [SpatialVideoMetadata] = []
     
-    func fetchThumbnailsMetadata(completion: @escaping (Result<[ThumbnailMetadata], Error>) -> Void) {
+    func fetchThumbnailsMetadata(completion: @escaping (Result<[SpatialVideoMetadata], Error>) -> Void) {
         let baseRef = Storage.storage().reference().child("SpatialFiles/mov/")
         baseRef.listAll { (baseResult, baseError) in
             if let baseError = baseError {
@@ -150,7 +150,7 @@ class FirebaseViewModel: ObservableObject {
                 return
             }
             
-            var thumbnails: [ThumbnailMetadata] = []
+            var spatialVideoMetadataList: [SpatialVideoMetadata] = []
             let group = DispatchGroup()
             
             for folderRef in baseResult.prefixes {
@@ -161,77 +161,77 @@ class FirebaseViewModel: ObservableObject {
                         group.leave()
                         return
                     }
-
-                    for folderRef in baseResult.prefixes {
+                    
+                    // Safely unwrap folderResult
+                    guard let folderResult = folderResult else {
+                        print("Folder result is nil")
+                        group.leave()
+                        return
+                    }
+                    
+                    for item in folderResult.items {
                         group.enter()
-                        folderRef.listAll { (folderResult, folderError) in
-                            if let folderError = folderError {
-                                print("Error listing folder: \(folderError)")
+                        item.getMetadata { metadata, error in
+                            if let error = error {
+                                print("Error getting metadata for item \(item): \(error)")
                                 group.leave()
                                 return
                             }
-
-                            // Safely unwrap folderResult
-                            guard let folderResult = folderResult else {
-                                print("Folder result is nil")
-                                group.leave()
-                                return
-                            }
-
-                            for subFolderRef in folderResult.prefixes {
-                                group.enter()
-                                subFolderRef.listAll { (subFolderResult, subFolderError) in
-                                    if let subFolderError = subFolderError {
-                                        print("Error listing subfolder: \(subFolderError)")
+                            if let metadata = metadata,
+                               let name = metadata.name, // Safely unwrap name here
+                               let timeCreated = metadata.timeCreated,
+                               name.hasSuffix("_thumbnail.jpg") { // Now you can call hasSuffix
+                                item.downloadURL { (thumbnailURL, error) in
+                                    if let error = error {
+                                        print("Error getting download URL for item \(item): \(error)")
                                         group.leave()
                                         return
                                     }
-
-                                    // Safely unwrap subFolderResult
-                                    guard let subFolderResult = subFolderResult else {
-                                        print("Subfolder result is nil")
-                                        group.leave()
-                                        return
-                                    }
-
-                                    for item in subFolderResult.items {
-                                        group.enter()
-                                        item.getMetadata { metadata, error in
+                                    if let thumbnailDownloadURL = thumbnailURL {
+                                        // Construct the path for the corresponding .mov file
+                                        let videoName = name.replacingOccurrences(of: "_thumbnail.jpg", with: ".mov")
+                                        let videoPath = "SpatialFiles/mov/\(folderRef.name)/\(videoName)"
+                                        let videoStorageRef = Storage.storage().reference().child(videoPath)
+                                        
+                                        // Fetch the download URL for the .mov file
+                                        videoStorageRef.downloadURL { (videoURL, error) in
                                             if let error = error {
-                                                print("Error getting metadata for item \(item): \(error)")
+                                                print("Error getting download URL for video \(videoName): \(error)")
                                                 group.leave()
                                                 return
                                             }
-                                            if let metadata = metadata,
-                                               let timeCreated = metadata.timeCreated,
-                                               let path = metadata.path {
-                                                let downloadURL = "gs://booksp-eae3c.appspot.com/" + path
-                                                let thumbnail = ThumbnailMetadata(url: downloadURL, size: metadata.size, timeCreated: timeCreated) // Directly access metadata.size
-                                                thumbnails.append(thumbnail)
-                                            }
+                                            
+                                            let videoMetadata = SpatialVideoMetadata(
+                                                videoURL: videoURL?.absoluteString,
+                                                thumbnailURL: thumbnailDownloadURL.absoluteString,
+                                                size: metadata.size,
+                                                timeCreated: timeCreated
+                                            )
+                                            spatialVideoMetadataList.append(videoMetadata)
                                             group.leave()
                                         }
+                                    } else {
+                                        group.leave()
                                     }
-
-                                    group.leave()
                                 }
+                            } else {
+                                group.leave()
                             }
-                            group.leave()
                         }
                     }
-
+                    
                     group.leave()
                 }
             }
-
             
             group.notify(queue: .main) {
                 // Sort by time created, newest first
-                thumbnails.sort { $0.timeCreated > $1.timeCreated }
-                self.thumbnailsMetadata = thumbnails
-                completion(.success(thumbnails))
+                spatialVideoMetadataList.sort { $0.timeCreated > $1.timeCreated }
+                self.thumbnailsMetadata = spatialVideoMetadataList
+                completion(.success(spatialVideoMetadataList))
             }
         }
     }
+
     
 }

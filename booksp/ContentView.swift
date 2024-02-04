@@ -346,11 +346,16 @@ struct ContentView: View {
 // MARK: - ContentView END
 
 struct DetailView: View {
-    let metadata: ThumbnailMetadata
+    
+    let metadata: SpatialVideoMetadata
 
     var body: some View {
-        // Layout for displaying .mov file and additional information
-        Text("Detail view for \(metadata.url)")
+        // Safely unwrap the videoURL and create a URL object
+        if let videoURLString = metadata.videoURL, let url = URL(string: videoURLString) {
+            USDZQLPreview(url: url) // Display the video preview
+        } else {
+            Text("Invalid or missing URL") // Show an error message if the URL is invalid or missing
+        }
     }
 }
 
@@ -358,56 +363,103 @@ struct homeView: View {
     @ObservedObject var firebaseViewModel = FirebaseViewModel()
     
     @State private var fileURLs: [URL] = []
+    
+    let timer = Timer.publish(every: 10, on: .main, in: .common).autoconnect()
+    let customColor = Color(red: 0.988, green: 0.169, blue: 0.212)
+
         
     var body: some View {
-        VStack {
-            
-            HStack {
-                Image("teegarden-logo-nobg")
-                    .resizable()
-                    .frame(width: 30, height: 30)
-                Text("Teegarden")
-                    .font(.system(size: 25))
-                Spacer()
-            }
-            
+        GeometryReader { geometry in
             VStack {
-                
+                // Background color for the top HStack
                 HStack {
-                    Text("Spatial Videos")
-                        .font(.headline)
-                        .padding(.leading)
+                    Image("teegarden-logo-nobg")
+                        .resizable()
+                        .frame(width: 30, height: 30)
+                    Text("Teegarden")
+                        .font(.system(size: 25))
                     Spacer()
                 }
+                .padding(.leading, 10)
+                .padding(.top, 40)
                 
-                ScrollView {
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 20) {
-                        ForEach(firebaseViewModel.thumbnailsMetadata, id: \.url) { metadata in
-                            NavigationLink(destination: DetailView(metadata: metadata)) {
-                                AsyncImage(url: URL(string: metadata.url)) { image in
-                                    image
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fill)
-                                } placeholder: {
-                                    Color.gray
+                VStack {
+                    HStack {
+                        Text("Spatial Videos")
+                            .font(.headline)
+                            .padding(.leading)
+                        Spacer()
+                    }
+                    .padding([.top, .leading], 10)
+                    
+                    Spacer()
+                    
+                    // Background color for ScrollView
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        let rows = [GridItem(.flexible(minimum: 10, maximum: .infinity), spacing: 20)]
+                        
+                        LazyHGrid(rows: rows, spacing: 20) {
+                            ForEach(firebaseViewModel.thumbnailsMetadata, id: \.thumbnailURL) { metadata in
+                                NavigationLink(destination: DetailView(metadata: metadata)) {
+                                    AsyncImage(url: URL(string: metadata.thumbnailURL)) { phase in
+                                        if let image = phase.image {
+                                            image
+                                                .resizable()
+                                                .scaledToFill()
+                                                .frame(width: 820, height: 480)
+                                                .clipped()
+                                                .transition(.opacity)
+                                                .clipShape(RoundedRectangle(cornerRadius: 10))
+                                        } else if phase.error != nil {
+                                            Color.red
+                                        } else {
+                                            ZStack {
+                                                Color.gray
+                                                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                                            
+                                                VStack {
+                                                    Spacer()
+                                                    HStack {
+                                                        ProgressView()
+                                                            .frame(width: 840, height: 500)
+                                                            .clipped()
+                                                    }
+                                                    Spacer()
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
-                                .frame(width: 100, height: 100)
-                                .clipShape(RoundedRectangle(cornerRadius: 10))
+                                .frame(width: 800, height: 460)
+                            }
+                        }
+                        .padding(.top, 10)
+                        .padding(.bottom, 50)
+                    }
+                    .frame(width: geometry.size.width, height: geometry.size.height / 3 * 2 + 100)
+                    .onAppear {
+                        firebaseViewModel.fetchThumbnailsMetadata() { result in
+                            switch result {
+                            case .success(let thumbnails):
+                                print("Successfully fetched thumbnails: \(thumbnails)")
+                            case .failure(let error):
+                                print("Error fetching thumbnails: \(error)")
                             }
                         }
                     }
-                }
-                .onAppear {
-                    firebaseViewModel.fetchThumbnailsMetadata() { result in
-                        switch result {
-                        case .success(let thumbnails):
-                            print("Successfully fetched thumbnails: \(thumbnails)")
-                        case .failure(let error):
-                            print("Error fetching thumbnails: \(error)")
+                    .onReceive(timer) { _ in
+                        firebaseViewModel.fetchThumbnailsMetadata() { result in
+                            switch result {
+                            case .success(let thumbnails):
+                                print("Successfully fetched thumbnails: \(thumbnails)")
+                            case .failure(let error):
+                                print("Error fetching thumbnails: \(error)")
+                            }
                         }
                     }
+                    .padding()
                 }
-                .padding()
+                Spacer()
             }
         }
     }
@@ -747,44 +799,6 @@ struct Add3DModelView: View {
             }
         }
     }
-    
-    /**
-     
-     private func postModel(with confirmedURL: URL, thumbnailURL: URL?) {
-
-         let fileType = confirmedURL.pathExtension.lowercased()
-         
-         isLoadingModel = true
-         
-         FirebaseViewModel.shared.uploadCube(modelURL: confirmedURL, thumbnailURL: thumbnailURL, fileType: fileType) { result in
-     
-             self.isLoadingModel = false
-             switch result {
-             case .success(let (modelStorageURL, thumbnailStorageURL)):
-                 let newPost = Post(modelURL: modelStorageURL, caption: self.captionText, thumbnailURL: thumbnailStorageURL)
-                 self.feedModel.addPost(newPost) { success in
-                     if success {
-                         self.alertTitle = "Success"
-                         self.alertMessage = "Your post has been successfully added!"
-                     } else {
-                         self.alertTitle = "Failure"
-                         self.alertMessage = "Failed to add post. Please try again."
-                     }
-                     self.showAlert = true
-                     self.captionText = ""
-                     self.savedModelURL = nil
-                     self.selectedModelURL = nil
-                     self.confirmedModelURL = nil
-                 }
-             case .failure(let error):
-                 self.alertTitle = "Failure"
-                 self.alertMessage = "Error uploading model: \(error.localizedDescription)"
-                 self.showAlert = true
-             }
-         }
-     }
-     
-     **/
 
     struct ModelPreviewView: View {
         @Binding var savedModelURL: URL?

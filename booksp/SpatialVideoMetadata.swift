@@ -7,8 +7,9 @@
 
 import Foundation
 
-struct ThumbnailMetadata {
-    let url: String
+struct SpatialVideoMetadata {
+    let videoURL: String?
+    let thumbnailURL: String
     let size: Int64
     let timeCreated: Date
 }
