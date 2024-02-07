@@ -54,12 +54,12 @@ struct ContentView: View {
                     if tab == .home {
                         HomeViewWrapper()
                     } else if tab == .profile && !firebase.isLoggedIn {
-                        logInViewToProfile()
+                        logInViewToPost()
                             .environmentObject(firebase)
                     } else if tab == .profile && firebase.isLoggedIn {
                         UserAllViewWrapper()
                     } else if tab == .post && !firebase.isLoggedIn {
-                        logInViewToPost()
+                        SignUpView()
                             .environmentObject(firebase)
                     } else if tab == .post && firebase.isLoggedIn {
                         Add3DModelViewWrapper()
@@ -124,6 +124,7 @@ struct ContentView: View {
         @State private var navigationTag: NavigationTag?
         
         enum NavigationTag {
+            case signUp
             case userAllView
         }
         
@@ -174,17 +175,14 @@ struct ContentView: View {
                         
                         Text("Create an account?")
                             .onTapGesture {
-                                
+                                navigationTag = .signUp
                             }
-                        
-                        NavigationLink(value: NavigationTag.userAllView) {
-                            EmptyView()
-                        }
-                        .hidden()
                     }
                 }
                 .navigationDestination(for: NavigationTag.self) { tag in
                     switch tag {
+                    case .signUp:
+                        SignUpView()
                     case .userAllView:
                         UserAllViewWrapper()
                     }
@@ -194,20 +192,22 @@ struct ContentView: View {
         
     }
     
+    enum LogInDestination {
+        case SignUpView
+        case userHomeView
+    }
+    
     struct logInViewToPost: View {
         
         @EnvironmentObject var firebase: FirebaseViewModel
         
         @State private var showingSuccessAlert = false
         @State private var successMessage = "Signed In Successfully."
-        @State private var navigationTag: NavigationTag?
-        
-        enum NavigationTag {
-            case postView
-        }
+        @State private var navigationPath = NavigationPath()
+        @State private var navigateToUserHome = false
         
         var body: some View {
-            NavigationStack {
+            NavigationStack(path: $navigationPath) {
                 VStack {
                     Text("Authentication")
                     
@@ -242,7 +242,7 @@ struct ContentView: View {
                             presenting: successMessage
                         ) { _ in
                             Button("OK") {
-                                navigationTag = .postView
+                                navigateToUserHome = true
                             }
                         } message: { successMessage in
                             Text(successMessage)
@@ -250,64 +250,77 @@ struct ContentView: View {
                         
                         Text(firebase.errorMessage)
                         
-                        Text("Create an account?")
-                            .onTapGesture {
-                                
-                            }
-                        
-                        NavigationLink(value: NavigationTag.postView) {
-                            EmptyView()
+                        NavigationLink(value: LogInDestination.SignUpView) {
+                            Text("Create an account?")
                         }
-                        .hidden()
+                        .buttonStyle(PlainButtonStyle())
                     }
                 }
-                .navigationDestination(for: NavigationTag.self) { tag in
-                    switch tag {
-                    case .postView:
-                        Add3DModelViewWrapper()
+                .navigationDestination(for: LogInDestination.self) { destination in
+                    switch destination {
+                    case .SignUpView:
+                        SignUpView()
+                    case .userHomeView:
+                        logInViewToProfile()
                     }
                 }
             }
         }
     }
     
+    enum SignUpDestination {
+        case logInView
+        case userHomeView
+    }
+
     struct SignUpView: View {
-        
         @EnvironmentObject var firebase: FirebaseViewModel
-        
         @State private var showingSuccessAlert = false
-        @State private var successMessage = "User registration has succeeded!."
-        @State private var navigationTag: NavigationTag?
-        
-        enum NavigationTag {
-            case userAllView
-        }
-        
+        @State private var successMessage = "User registration has succeeded!"
+        @State private var firstName: String = ""
+        @State private var lastName: String = ""
+        @State private var navigationPath = NavigationPath()
+        @State private var navigateToUserHome = false
+
         var body: some View {
-            VStack {
-                Text("Registration")
-                
-                TextField("Email", text: $firebase.mail)
-                    .keyboardType(.emailAddress)
-                    .autocapitalization(.none)
-                    .padding()
-                    .frame(width: 250.0, height: 100.0)
-                
-                SecureField("Password", text: $firebase.password)
-                    .padding()
-                    .frame(width: 250.0, height: 100.0)
+            NavigationStack(path: $navigationPath) {
+                VStack {
+                    Text("Registration")
+                    
+                    // First Name
+                    TextField("First Name", text: $firstName)
+                        .padding()
+                        .frame(width: 250.0, height: 50.0)
+                    
+                    // Last Name
+                    TextField("Last Name", text: $lastName)
+                        .padding()
+                        .frame(width: 250.0, height: 50.0)
+                    
+                    // Email
+                    TextField("Email", text: $firebase.mail)
+                        .keyboardType(.emailAddress)
+                        .autocapitalization(.none)
+                        .padding()
+                        .frame(width: 250.0, height: 50.0)
+                    
+                    // Password
+                    SecureField("Password", text: $firebase.password)
+                        .padding()
+                        .frame(width: 250.0, height: 50.0)
+                }
                 
                 VStack {
                     Button(action: {
-                        firebase.signUp { success, message in
+                        // Update the sign-up process to include first & last name, and image
+                        firebase.signUp(firstName: firstName, lastName: lastName) { success, message in
                             if success {
-                                print("enter success logic")
                                 successMessage = message
                                 showingSuccessAlert = true
-                                print("showingSuccessAlert is toggled")
                                 firebase.isLoggedIn = true
                             } else {
-                                firebase.errorMessage = message                                }
+                                firebase.errorMessage = message
+                            }
                         }
                     }) {
                         Text("Authenticate →")
@@ -318,46 +331,64 @@ struct ContentView: View {
                         presenting: successMessage
                     ) { _ in
                         Button("OK") {
-                            navigationTag = .userAllView
+                            navigateToUserHome = true
                         }
                     } message: { successMessage in
                         Text(successMessage)
                     }
-                    
+
                     Text(firebase.errorMessage)
-                    
-                    Text("Already have an account?")
-                        .onTapGesture {
-                            
-                        }
+
+                    // Navigate to LogInViewWrapper
+                    NavigationLink(value: SignUpDestination.logInView) {
+                        Text("Already have an account?")
+                    }
+                    .buttonStyle(PlainButtonStyle())
                 }
             }
-            .navigationDestination(for: NavigationTag.self) { tag in
-                switch tag {
-                case .userAllView:
+            // Define how to handle navigation to LogInViewWrapper
+            .navigationDestination(for: SignUpDestination.self) { destination in
+                switch destination {
+                case .logInView:
+                    logInViewToProfile()
+                case .userHomeView:
                     UserAllViewWrapper()
                 }
             }
         }
     }
-    
 }
 
 // MARK: - ContentView END
 
 struct DetailView: View {
     
-    let metadata: SpatialVideoMetadata
-
+    @StateObject var firebase = FirebaseViewModel()
+    
     var body: some View {
-        // Safely unwrap the videoURL and create a URL object
-        if let videoURLString = metadata.videoURL, let url = URL(string: videoURLString) {
-            USDZQLPreview(url: url) // Display the video preview
+        // Safely unwrap the first item of the array
+        if let firstMetadata = firebase.spatialVideoMetadataArray.first {
+            // Prefer the localURL if available, otherwise fall back to the videoURL
+            let url = firstMetadata.localURL ?? URL(string: firstMetadata.videoURL ?? "")
+            
+            Text("Detail no metadata")
+                .onAppear {
+                       print("firstMetadata.localURL is: \(firstMetadata.localURL)")
+                   }
+            
+            // Safely unwrap the URL and create a URL object
+            if let url = url {
+                USDZQLPreview(url: url) // Display the video preview from the local URL
+            } else {
+                Text("Invalid or missing URL") // Show an error message if the URL is invalid or missing
+            }
         } else {
-            Text("Invalid or missing URL") // Show an error message if the URL is invalid or missing
+            Text("Metadata is empty") // Show an error message if there are no metadata items
         }
     }
 }
+
+
 
 struct homeView: View {
     @ObservedObject var firebaseViewModel = FirebaseViewModel()
@@ -371,7 +402,7 @@ struct homeView: View {
     var body: some View {
         GeometryReader { geometry in
             VStack {
-                // Background color for the top HStack
+
                 HStack {
                     Image("teegarden-logo-nobg")
                         .resizable()
@@ -399,14 +430,43 @@ struct homeView: View {
                         let rows = [GridItem(.flexible(minimum: 10, maximum: .infinity), spacing: 20)]
                         
                         LazyHGrid(rows: rows, spacing: 20) {
-                            ForEach(firebaseViewModel.thumbnailsMetadata, id: \.thumbnailURL) { metadata in
-                                NavigationLink(destination: DetailView(metadata: metadata)) {
-                                    AsyncImage(url: URL(string: metadata.thumbnailURL)) { phase in
+                            ForEach(firebaseViewModel.spatialVideoMetadataArray, id: \.thumbnailURL) { metadata in
+                                NavigationLink(destination: DetailView()) {
+                                    VStack {
+                                        // User info and profile image
+                                        HStack {
+                                            if let profileImageURL = firebaseViewModel.userProfileImageURL {
+                                                AsyncImage(url: profileImageURL) { image in
+                                                    image.resizable()
+                                                } placeholder: {
+                                                    Image(systemName: "person.circle")
+                                                        .resizable()
+                                                        .frame(width: 40, height: 40)
+                                                        .clipShape(Circle())
+                                                }
+                                                .scaledToFit()
+                                                .frame(width: 40, height: 40)
+                                                .clipShape(Circle())
+                                            }
+                                            
+                                            Image(systemName: "person.circle")
+                                                .resizable()
+                                                .frame(width: 40, height: 40)
+                                                .clipShape(Circle())
+                                            
+                                            Text("Username")
+                                                .padding(.leading, 5)
+                                                
+                                            Spacer()
+                                        }
+                                        .padding(.bottom, 20)
+                                        
+                                        AsyncImage(url: URL(string: metadata.thumbnailURL)) { phase in
                                         if let image = phase.image {
                                             image
                                                 .resizable()
                                                 .scaledToFill()
-                                                .frame(width: 820, height: 480)
+                                                .frame(width: 600, height: 247.22)
                                                 .clipped()
                                                 .transition(.opacity)
                                                 .clipShape(RoundedRectangle(cornerRadius: 10))
@@ -416,7 +476,7 @@ struct homeView: View {
                                             ZStack {
                                                 Color.gray
                                                     .clipShape(RoundedRectangle(cornerRadius: 10))
-                                            
+                                                
                                                 VStack {
                                                     Spacer()
                                                     HStack {
@@ -429,60 +489,194 @@ struct homeView: View {
                                             }
                                         }
                                     }
+                                        
+                                        //if let caption = metadata.caption {
+                                            Text("caption")
+                                                .padding(.top, 20)
+                                        //}
+                                        
+                                    }
                                 }
-                                .frame(width: 800, height: 460)
+                                .buttonStyle(PlainButtonStyle())
                             }
-                        }
-                        .padding(.top, 10)
-                        .padding(.bottom, 50)
-                    }
-                    .frame(width: geometry.size.width, height: geometry.size.height / 3 * 2 + 100)
-                    .onAppear {
-                        firebaseViewModel.fetchThumbnailsMetadata() { result in
-                            switch result {
-                            case .success(let thumbnails):
-                                print("Successfully fetched thumbnails: \(thumbnails)")
-                            case .failure(let error):
-                                print("Error fetching thumbnails: \(error)")
-                            }
+                            .frame(width: 600, height: 800)
                         }
                     }
-                    .onReceive(timer) { _ in
-                        firebaseViewModel.fetchThumbnailsMetadata() { result in
-                            switch result {
-                            case .success(let thumbnails):
-                                print("Successfully fetched thumbnails: \(thumbnails)")
-                            case .failure(let error):
-                                print("Error fetching thumbnails: \(error)")
-                            }
-                        }
-                    }
-                    .padding()
+                    .padding(.top, 10)
+                    .padding(.bottom, 10)
+                    .frame(width: geometry.size.width, height: geometry.size.height / 1.5)
+                    
+                    Spacer()
                 }
-                Spacer()
+                .frame(width: geometry.size.width, height: geometry.size.height / 3 * 2 + 100)
+                .onAppear {
+                    firebaseViewModel.fetchThumbnailsMetadata() { result in
+                        switch result {
+                        case .success(let thumbnails):
+                            print("Successfully fetched thumbnails: \(thumbnails)")
+                        case .failure(let error):
+                            print("Error fetching thumbnails: \(error)")
+                        }
+                    }
+                }
+                .onReceive(timer) { _ in
+                    firebaseViewModel.fetchThumbnailsMetadata() { result in
+                        switch result {
+                        case .success(let thumbnails):
+                            print("Successfully fetched thumbnails: \(thumbnails)")
+                        case .failure(let error):
+                            print("Error fetching thumbnails: \(error)")
+                        }
+                    }
+                }
+                .padding()
             }
+            Spacer()
         }
     }
 }
     
+struct ImagePicker: UIViewControllerRepresentable {
+    @Binding var selectedImage: UIImage?
+    @Environment(\.presentationMode) private var presentationMode
+    
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let imagePicker = UIImagePickerController()
+        imagePicker.delegate = context.coordinator
+        return imagePicker
+    }
+    
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    
+    class Coordinator: NSObject, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
+        var parent: ImagePicker
+        
+        init(_ parent: ImagePicker) {
+            self.parent = parent
+        }
+        
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+            if let image = info[.originalImage] as? UIImage {
+                parent.selectedImage = image
+            }
+            
+            parent.presentationMode.wrappedValue.dismiss()
+        }
+        
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            parent.presentationMode.wrappedValue.dismiss()
+        }
+    }
+}
+
+/*
+struct userObjectiveView: View {
+    
+}
+ */
+
 struct userAllView: View {
+    @EnvironmentObject var firebase: FirebaseViewModel
+    @State private var showingImagePicker = false
+    @State private var inputImage: UIImage?
+    @State private var posts: [Post] = []
+
+    private func uploadImage() {
+        guard let newImage = inputImage, let userId = firebase.currentUserId else { return }
+        guard let imageData = newImage.imageData() else { return }
+
+        firebase.uploadProfileImage(userId: userId, imageData: imageData) { imageURL in
+            if let imageURL = imageURL {
+                // Save the image URL in Firestore in the user's profile document
+                firebase.updateProfileImageUrl(userId: userId, imageURL: imageURL) {
+                    // Handle the result of the profile image URL update
+                    // You can use a completion block or update your UI accordingly
+                    print("Profile image URL updated successfully!")
+                }
+            }
+        }
+    }
+
     var body: some View {
         NavigationStack {
             VStack {
-                Text("Teegarden is the tool, designed to help makers broaden the range of expression by adding one more dimension. Moreover, for any people wish to have a spatial archive. Check out our guide book, raising your head.")
-                    .padding()
+                // Profile Image
+                if let inputImage = inputImage {
+                    Image(uiImage: inputImage)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 100, height: 100)
+                        .clipShape(Circle())
+                } else {
+                    VStack {
+                        Image(systemName: "person.circle")
+                            .resizable()
+                            .frame(width: 40, height: 40)
+                        Button("Upload Profile Image") {
+                            showingImagePicker = true
+                        }
+                    }
+                }
+
+                // Display user's first and last names (assumed to be properties of firebase)
+                HStack {
+                    Text(firebase.userFirstName)
+                    Text(firebase.userLastName)
+                }
+
+                /// seems not linked to user yet
+                if posts.isEmpty {
+                    Text("Show us your spatial videos and archive them here!")
+                        .padding()
+                } else {
+                    // A list of posts, each post has a thumbnail and optional caption
+                    List(posts) { post in
+                        VStack(alignment: .leading) {
+                            Image(uiImage: UIImage(data: try! Data(contentsOf: post.thumbnailURL))!)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                            if let caption = post.caption {
+                                Text(caption)
+                            }
+                        }
+                    }
+                }
+
                 NavigationLink(destination: Add3DModelView()) {
-                    Text("Go post now →")
+                    Text("Post now →")
                         .padding()
                         .foregroundColor(Color.white)
                         .cornerRadius(8)
                 }
+
+                // Support email address
+                HStack {
+                    Text("Support: support@teegarden.app")
+                    Image(systemName: "paperplane")
+                }
+                
+                // Sign Out button
+                Button("Sign Out") {
+                    firebase.signOut()
+                    /// not working now
+                }
+                .buttonStyle(PlainButtonStyle())
+                .foregroundColor(.red)
+
+                Spacer()
+            }
+            .navigationTitle("My Space")
+            .navigationBarTitleDisplayMode(.inline)
+            .sheet(isPresented: $showingImagePicker, onDismiss: uploadImage) {
+                ImagePicker(selectedImage: $inputImage)
             }
         }
-        .navigationTitle("My Space")
     }
 }
-
 
 struct Book: Identifiable {
     let id: String
@@ -493,10 +687,20 @@ struct Book: Identifiable {
 }
 
 struct Post: Identifiable {
-    var id = UUID()
-    var modelURL: URL
-    var caption: String
-    var thumbnailURL: URL?
+    var id: String
+    var creatorUserID: String
+    var thumbnailURL: URL
+    var caption: String?
+    var creationDate: Date?
+}
+
+struct User: Identifiable {
+    var id: String
+    var profileImageURL: URL
+    var username: String
+    var firstName: String
+    var lastName: String
+    var posts: [Post]
 }
 
 class FeedModel: ObservableObject {
