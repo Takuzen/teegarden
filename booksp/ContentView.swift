@@ -287,33 +287,38 @@ struct ContentView: View {
                 VStack {
                     Text("Registration")
                     
-                    // First Name
-                    TextField("First Name", text: $firstName)
+                    TextField("Username", text: $firebase.username)
                         .padding()
-                        .frame(width: 250.0, height: 50.0)
-                    
-                    // Last Name
-                    TextField("Last Name", text: $lastName)
-                        .padding()
-                        .frame(width: 250.0, height: 50.0)
+                        .frame(width: 260.0, height: 100.0)
                     
                     // Email
                     TextField("Email", text: $firebase.mail)
                         .keyboardType(.emailAddress)
                         .autocapitalization(.none)
                         .padding()
-                        .frame(width: 250.0, height: 50.0)
+                        .frame(width: 260.0, height: 100.0)
                     
                     // Password
                     SecureField("Password", text: $firebase.password)
                         .padding()
-                        .frame(width: 250.0, height: 50.0)
+                        .frame(width: 260.0, height: 100.0)
+                    
+                    // First Name
+                    TextField("First Name", text: $firstName)
+                        .padding()
+                        .frame(width: 260.0, height: 100.0)
+                    
+                    // Last Name
+                    TextField("Last Name", text: $lastName)
+                        .padding()
+                        .frame(width: 260.0, height: 100.0)
+                    
                 }
                 
                 VStack {
                     Button(action: {
                         // Update the sign-up process to include first & last name, and image
-                        firebase.signUp(firstName: firstName, lastName: lastName) { success, message in
+                        firebase.signUp(firstName: firstName, lastName: lastName, username: firebase.username) { success, message in
                             if success {
                                 successMessage = message
                                 showingSuccessAlert = true
@@ -397,12 +402,12 @@ struct homeView: View {
     
     let timer = Timer.publish(every: 10, on: .main, in: .common).autoconnect()
     let customColor = Color(red: 0.988, green: 0.169, blue: 0.212)
-
-        
+    
+    
     var body: some View {
         GeometryReader { geometry in
             VStack {
-
+                
                 HStack {
                     Image("teegarden-logo-nobg")
                         .resizable()
@@ -425,7 +430,6 @@ struct homeView: View {
                     
                     Spacer()
                     
-                    // Background color for ScrollView
                     ScrollView(.horizontal, showsIndicators: false) {
                         let rows = [GridItem(.flexible(minimum: 10, maximum: .infinity), spacing: 20)]
                         
@@ -433,105 +437,111 @@ struct homeView: View {
                             ForEach(firebaseViewModel.spatialVideoMetadataArray, id: \.thumbnailURL) { metadata in
                                 NavigationLink(destination: DetailView()) {
                                     VStack {
-                                        // User info and profile image
                                         HStack {
                                             if let profileImageURL = firebaseViewModel.userProfileImageURL {
-                                                AsyncImage(url: profileImageURL) { image in
-                                                    image.resizable()
-                                                } placeholder: {
-                                                    Image(systemName: "person.circle")
-                                                        .resizable()
-                                                        .frame(width: 40, height: 40)
-                                                        .clipShape(Circle())
+                                                AsyncImage(url: profileImageURL) { phase in
+                                                    if let image = phase.image {
+                                                        image.resizable() // Image successfully loaded
+                                                            .aspectRatio(contentMode: .fill)
+                                                    } else if phase.error != nil {
+                                                        Image(systemName: "person.circle") // If an error occurred during image loading
+                                                            .resizable()
+                                                            .frame(width: 40, height: 40)
+                                                            .clipShape(Circle())
+                                                    } else {
+                                                        Image(systemName: "person.circle") // Placeholder for loading state
+                                                            .resizable()
+                                                            .frame(width: 40, height: 40)
+                                                            .clipShape(Circle())
+                                                    }
                                                 }
                                                 .scaledToFit()
                                                 .frame(width: 40, height: 40)
                                                 .clipShape(Circle())
+                                            } else {
+                                                Image(systemName: "person.circle")
+                                                    .resizable()
+                                                    .frame(width: 30, height: 30)
+                                                    .clipShape(Circle())
                                             }
                                             
-                                            Image(systemName: "person.circle")
-                                                .resizable()
-                                                .frame(width: 40, height: 40)
-                                                .clipShape(Circle())
-                                            
-                                            Text("Username")
+                                            Text(firebaseViewModel.username)
                                                 .padding(.leading, 5)
-                                                
+                                            
                                             Spacer()
                                         }
                                         .padding(.bottom, 20)
                                         
                                         AsyncImage(url: URL(string: metadata.thumbnailURL)) { phase in
-                                        if let image = phase.image {
-                                            image
-                                                .resizable()
-                                                .scaledToFill()
-                                                .frame(width: 600, height: 247.22)
-                                                .clipped()
-                                                .transition(.opacity)
-                                                .clipShape(RoundedRectangle(cornerRadius: 10))
-                                        } else if phase.error != nil {
-                                            Color.red
-                                        } else {
-                                            ZStack {
-                                                Color.gray
+                                            if let image = phase.image {
+                                                image
+                                                    .resizable()
+                                                    .scaledToFill()
+                                                    .frame(width: 600, height: 247.22)
+                                                    .clipped()
+                                                    .transition(.opacity)
                                                     .clipShape(RoundedRectangle(cornerRadius: 10))
-                                                
-                                                VStack {
-                                                    Spacer()
-                                                    HStack {
-                                                        ProgressView()
-                                                            .frame(width: 840, height: 500)
-                                                            .clipped()
+                                            } else if phase.error != nil {
+                                                Color.red
+                                            } else {
+                                                ZStack {
+                                                    Color.gray
+                                                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                                                    
+                                                    VStack {
+                                                        Spacer()
+                                                        HStack {
+                                                            ProgressView()
+                                                                .frame(width: 840, height: 500)
+                                                                .clipped()
+                                                        }
+                                                        Spacer()
                                                     }
-                                                    Spacer()
                                                 }
                                             }
                                         }
-                                    }
                                         
-                                        //if let caption = metadata.caption {
-                                            Text("caption")
+                                        if let caption = metadata.caption {
+                                            Text(caption)
                                                 .padding(.top, 20)
-                                        //}
-                                        
+                                        }
                                     }
                                 }
+                                .frame(width: 600, height: 800)
                                 .buttonStyle(PlainButtonStyle())
                             }
-                            .frame(width: 600, height: 800)
+                        }
+                        .padding(.top, 10)
+                        .padding(.bottom, 10)
+                        .frame(width: geometry.size.width, height: geometry.size.height / 1.5)
+                        
+                        Spacer()
+                    }
+                    .frame(width: geometry.size.width, height: geometry.size.height / 3 * 2 + 100)
+                    .onAppear {
+                        firebaseViewModel.fetchThumbnailsMetadata() { result in
+                            switch result {
+                            case .success(let thumbnails):
+                                print("Successfully fetched thumbnails: \(thumbnails)")
+                            case .failure(let error):
+                                print("Error fetching thumbnails: \(error)")
+                            }
                         }
                     }
-                    .padding(.top, 10)
-                    .padding(.bottom, 10)
-                    .frame(width: geometry.size.width, height: geometry.size.height / 1.5)
-                    
-                    Spacer()
-                }
-                .frame(width: geometry.size.width, height: geometry.size.height / 3 * 2 + 100)
-                .onAppear {
-                    firebaseViewModel.fetchThumbnailsMetadata() { result in
-                        switch result {
-                        case .success(let thumbnails):
-                            print("Successfully fetched thumbnails: \(thumbnails)")
-                        case .failure(let error):
-                            print("Error fetching thumbnails: \(error)")
+                    .onReceive(timer) { _ in
+                        firebaseViewModel.fetchThumbnailsMetadata() { result in
+                            switch result {
+                            case .success(let thumbnails):
+                                print("Successfully fetched thumbnails: \(thumbnails)")
+                            case .failure(let error):
+                                print("Error fetching thumbnails: \(error)")
+                            }
                         }
                     }
+                    .padding()
                 }
-                .onReceive(timer) { _ in
-                    firebaseViewModel.fetchThumbnailsMetadata() { result in
-                        switch result {
-                        case .success(let thumbnails):
-                            print("Successfully fetched thumbnails: \(thumbnails)")
-                        case .failure(let error):
-                            print("Error fetching thumbnails: \(error)")
-                        }
-                    }
-                }
-                .padding()
+                Spacer()
             }
-            Spacer()
         }
     }
 }
@@ -585,21 +595,6 @@ struct userAllView: View {
     @State private var inputImage: UIImage?
     @State private var posts: [Post] = []
 
-    private func uploadImage() {
-        guard let newImage = inputImage, let userId = firebase.currentUserId else { return }
-        guard let imageData = newImage.imageData() else { return }
-
-        firebase.uploadProfileImage(userId: userId, imageData: imageData) { imageURL in
-            if let imageURL = imageURL {
-                // Save the image URL in Firestore in the user's profile document
-                firebase.updateProfileImageUrl(userId: userId, imageURL: imageURL) {
-                    // Handle the result of the profile image URL update
-                    // You can use a completion block or update your UI accordingly
-                    print("Profile image URL updated successfully!")
-                }
-            }
-        }
-    }
 
     var body: some View {
         NavigationStack {
@@ -671,7 +666,7 @@ struct userAllView: View {
             }
             .navigationTitle("My Space")
             .navigationBarTitleDisplayMode(.inline)
-            .sheet(isPresented: $showingImagePicker, onDismiss: uploadImage) {
+            .sheet(isPresented: $showingImagePicker) {
                 ImagePicker(selectedImage: $inputImage)
             }
         }
@@ -846,8 +841,19 @@ func loadModelsFromTemporaryFolder() -> [URL] {
         return []
     }
 }
+
+class AlertViewModel: ObservableObject {
+    @Published var showOverwriteAlert: Bool = false
+    @Published var alertMessage: String = ""
+    // Other alert-related states can be added here
+}
+
+
+
 // MARK: - Add3DModelView
 struct Add3DModelView: View {
+    @StateObject private var alertViewModel = AlertViewModel()
+    
     @State private var isPickerPresented = false
     @State private var selectedModelURL: URL?
     @State private var confirmedModelURL: URL?
@@ -861,11 +867,15 @@ struct Add3DModelView: View {
     @State private var isLoadingModel = false
     @State private var isPreviewing = false
     @State private var isPostingSuccessful: Bool = false
-    @State private var showOverwriteAlert = false
+    @State private var navigateToHome = false
     @State private var shouldOverwriteFile = false
     @State private var showErrorAlert = false
     @State private var errorMessage = ""
     @State private var thumbnailURL: URL?
+    
+    @Environment(\.presentationMode) var presentationMode
+    
+    @EnvironmentObject private var firebase: FirebaseViewModel
     
     let allowedContentTypes: [UTType] = [.usdz, .reality, .movie]
     
@@ -928,12 +938,12 @@ struct Add3DModelView: View {
             case .failure(let error):
                 DispatchQueue.main.async {
                     if let fileSaveError = error as? FileSaveError, fileSaveError == .fileExists {
-                        self.showOverwriteAlert = true
+                        print("Setting showOverwriteAlert to true")
+                        self.alertViewModel.showOverwriteAlert = true
+                        print("showOverwriteAlert: \(self.alertViewModel.showOverwriteAlert)")
                     } else {
-                        self.alertMessage = error.localizedDescription
-                        self.showAlert = true
+                        self.alertViewModel.alertMessage = error.localizedDescription
                     }
-                    shouldOverwriteFile = false
                 }
             }
         }
@@ -1125,27 +1135,56 @@ struct Add3DModelView: View {
                     HStack {
                         Spacer()
                         Button("Post →") {
-                            if let confirmedURL = confirmedModelURL {
-                                postModel(with: confirmedURL, thumbnailURL: confirmedThumbnailURL)
-                                isPostingSuccessful = true
+                            print("[PONG] Post button got clicked.")
+                            if let confirmedMainURL = confirmedModelURL, let confirmedThumbnailURL = confirmedThumbnailURL {
+                                print("[PONG] confirmedMainURL and confirmedThumbnailURL are passed.")
+                                firebase.uploadVideoAndThumbnail(videoURL: confirmedMainURL, thumbnailURL: confirmedThumbnailURL) { videoDownloadURL, thumbnailDownloadURL in
+                                    
+                                    if let videoDownloadURL = videoDownloadURL, let thumbnailDownloadURL = thumbnailDownloadURL {
+                                        
+                                        print("[PONG] videoDownloadURL and thumbnailDownloadURL got.")
+
+                                        guard let userID = Auth.auth().currentUser?.uid else {
+                                            alertMessage = "You need to be logged in to post."
+                                            showAlert = true
+                                            return
+                                        }
+                                        
+                                        print("[PONG] userID (\(userID)) is acquired")
+                                        let username = firebase.username
+                                        
+                                        print("[PONG] username (\(username)) got.")
+                                        
+                                        print("[PONG] About to run createPost function.")
+                                        
+                                        print("[PONG] caption is: \(captionText)")
+                                        
+                                        firebase.createPost(forUserID: userID, videoURL: videoDownloadURL.absoluteString, thumbnailURL: thumbnailDownloadURL.absoluteString, caption: captionText, username: username)
+                                        
+                                        // Indicate that posting was successful
+                                        DispatchQueue.main.async {
+                                            isPostingSuccessful = true
+                                            print("[PONG] Post success!")
+                                        }
+                                    } else {
+                                        // Handle the error: either the video or thumbnail failed to upload
+                                        DispatchQueue.main.async {
+                                            alertMessage = "Failed to upload the model or thumbnail."
+                                            showAlert = true
+                                        }
+                                    }
+                                }
                             } else {
                                 alertMessage = "Please confirm the model before posting."
                                 showAlert = true
                             }
                         }
-                        .padding()
-                        .alert(isPresented: $showAlert) {
-                            Alert(
-                                title: Text(alertTitle),
-                                message: Text(alertMessage),
-                                dismissButton: .default(Text("OK"))
-                            )
-                        }
-                        .padding()
                     }
                     .padding()
                 }
+                
             } else {
+                
                 VStack {
                     Text("No model selected")
                         .padding()
@@ -1167,7 +1206,43 @@ struct Add3DModelView: View {
                             showAlert = true
                         }
                     }
-                    .padding()
+                    
+                    .alert(
+                        Text("The file already exists."),
+                        isPresented: $alertViewModel.showOverwriteAlert
+                    ) {
+                        Button(role: .destructive) {
+                            if let selectedModelURL = selectedModelURL {
+                                handleModelSelection(urls: [selectedModelURL], shouldOverwrite: true)
+                            }
+                        } label: {
+                            Text("Overwrite")
+                        }
+                        Button("Cancel", role: .cancel) {}
+                    }
+
+                    /* THIS DO NOT WORK!
+                    .alert(isPresented: $alertViewModel.showOverwriteAlert) {
+                        Alert(
+                            title: Text("The file already exists."),
+                            primaryButton: .destructive(Text("Overwrite")) {
+                                if let selectedModelURL = selectedModelURL {
+                                    handleModelSelection(urls: [selectedModelURL], shouldOverwrite: true)
+                                }
+                            }, secondaryButton: .cancel(Text("Cancel"))
+                        )
+                    }
+                    */
+
+                    .sheet(isPresented: $isPreviewing) {
+                        ModelPreviewView(
+                                savedModelURL: $savedModelURL,
+                                savedThumbnailURL: $savedThumbnailURL,
+                                isPreviewing: $isPreviewing,
+                                confirmedModelURL: $confirmedModelURL,
+                                confirmedThumbnailURL: $confirmedThumbnailURL
+                        )
+                    }
                     
                     TextField("Write a caption...", text: $captionText)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -1175,55 +1250,28 @@ struct Add3DModelView: View {
                     
                     HStack {
                         Spacer()
-                        Button("Post →") {
-                            if let confirmedURL = confirmedModelURL {
-                                postModel(with: confirmedURL, thumbnailURL: confirmedThumbnailURL)
-                                isPostingSuccessful = true
-                            } else {
-                                alertMessage = "Please confirm the model before posting."
-                                showAlert = true
-                            }
-                        }
-                        .padding()
-                        .alert(isPresented: $showAlert) {
-                            Alert(
-                                title: Text(alertTitle),
-                                message: Text(alertMessage),
-                                dismissButton: .default(Text("OK"))
-                            )
-                        }
-
-                        .padding()
-                        .alert(isPresented: $showAlert) {
-                            Alert(title: Text("Notification"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
-                        }
-                        .alert(isPresented: $showOverwriteAlert) {
-                            Alert(
-                                title: Text("The file already exists."),
-                                primaryButton: .destructive(Text("Overwrite")) {
-                                    // User confirms to overwrite the file
-                                    shouldOverwriteFile = true
-                                    // Call the function to handle the model selection again with overwrite allowed
-                                    if let selectedModelURL = selectedModelURL {
-                                        handleModelSelection(urls: [selectedModelURL], shouldOverwrite: true)
-                                    }
-                                },secondaryButton: .cancel(Text("Cancel")))
-                        }
+                        Button("Post →") {}
+                            .disabled(true)
+                            .padding()
                     }
-                    .padding()
                 }
+                .padding()
             }
         }
-        .navigationTitle("Post")
-        .sheet(isPresented: $isPreviewing) {
-            ModelPreviewView(
-                    savedModelURL: $savedModelURL,
-                    savedThumbnailURL: $savedThumbnailURL,
-                    isPreviewing: $isPreviewing,
-                    confirmedModelURL: $confirmedModelURL, // Pass the binding
-                    confirmedThumbnailURL: $confirmedThumbnailURL
+        .alert(isPresented: $isPostingSuccessful) {
+            Alert(
+                title: Text("Posting was successful!"),
+                primaryButton: .destructive(Text("Head feed")) {
+                    // Set the state to trigger navigation to HomeView
+                    navigateToHome = true
+                },
+                secondaryButton: .cancel(Text("Continue posting"))
             )
         }
+        .navigationDestination(isPresented: $navigateToHome) {
+            homeView()
+        }
+        .navigationTitle("Post")
     }
 }
 

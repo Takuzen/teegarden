@@ -31,12 +31,7 @@ struct SpatialVideoMetadata {
 }
 
 class FirebaseViewModel: ObservableObject {
-    @Published var currentUserId: String?
     @Published var userProfileImageURL: URL?
-
-    init() {
-        self.currentUserId = Auth.auth().currentUser?.uid
-    }
     
     static let shared: FirebaseViewModel = .init()
     
@@ -44,6 +39,7 @@ class FirebaseViewModel: ObservableObject {
     private let maxLocalStorageSize: UInt64 = 10 * 1024 * 1024 * 1024
     
     @Published var isLoggedIn:Bool = false
+    @Published var username: String = ""
     @Published var mail: String = ""
     @Published var password: String = ""
     @Published var userFirstName: String = ""
@@ -54,10 +50,109 @@ class FirebaseViewModel: ObservableObject {
     @Published var metadata: SpatialVideoMetadata?
     @Published var spatialVideoMetadataArray: [SpatialVideoMetadata] = []
     
+    private var storageRef = Storage.storage().reference()
+    private var db = Firestore.firestore()
+    
+    func createPost(forUserID userID: String, videoURL: String, thumbnailURL: String, caption: String, username: String) {
+            // Create a reference for a new post ID in the user's sub-collection.
+            let userPostRef = db.collection("users").document(userID).collection("posts").document()
+            let globalPostRef = db.collection("posts").document(userPostRef.documentID)
+            
+            // Prepare the data as per the new structure including the thumbnail URL.
+            let postData = [
+                "videoURL": videoURL,
+                "thumbnailURL": thumbnailURL,
+                "caption": caption,
+                "username": username,
+                "timestamp": Timestamp(date: Date()) // Use Firestore's Timestamp for the current time
+            ] as [String : Any]
+            
+            // Add the post to the user's sub-collection.
+            userPostRef.setData(postData) { error in
+                if let error = error {
+                    print("Error adding post to user's collection: \(error.localizedDescription)")
+                } else {
+                    print("Post added to user's collection successfully")
+                    
+                    // Also add a reference to the global posts collection with userID and thumbnail URL.
+                    let globalPostData = postData.merging(["userID": userID]) { (current, _) in current }
+                    
+                    globalPostRef.setData(globalPostData) { error in
+                        if let error = error {
+                            print("Error adding post to global posts collection: \(error.localizedDescription)")
+                        } else {
+                            print("Post added to global posts collection successfully")
+                        }
+                    }
+                }
+            }
+        }
+    
+    func uploadVideoAndThumbnail(videoURL: URL, thumbnailURL: URL, completion: @escaping (URL?, URL?) -> Void) {
+        let uniqueID = UUID().uuidString
+        let videoStorageRef = storageRef.child("SpatialFiles/mov/\(uniqueID)/\(uniqueID).mov")
+        let thumbnailStorageRef = storageRef.child("SpatialFiles/mov/\(uniqueID)/\(uniqueID)_thumbnail.jpg")
+        print("[PONG] About to upload the video")
+        // Upload the video
+        let uploadTaskVideo = videoStorageRef.putFile(from: videoURL, metadata: nil) { metadata, error in
+            if let error = error {
+                print("Failed to upload video: \(error.localizedDescription)")
+            }
+            
+            guard metadata != nil else {
+                print("Upload failed, metadata is nil.")
+                completion(nil, nil)
+                return
+            }
+            
+            print("[PONG] Video uploaded successfully, URL: \(videoURL)")
+            
+            print("[PONG] About to fetch videodownload URL.")
+            
+            // Fetch the download URL for the video
+            videoStorageRef.downloadURL { videoDownloadURL, error in
+                guard let videoDownloadURL = videoDownloadURL else {
+                    print("Video URL not found: \(error?.localizedDescription ?? "Unknown error")")
+                    completion(nil, nil)
+                    return
+                }
+                
+                print("[PONG] video got Downloaded successfully, URL: \(videoDownloadURL)")
+                
+                print("[PONG] About to upload thumbnail")
+                // Upload the thumbnail
+                let uploadTaskThumbnail = thumbnailStorageRef.putFile(from: thumbnailURL, metadata: nil) { metadata, error in
+                    guard metadata != nil else {
+                        print("Failed to upload thumbnail: \(error?.localizedDescription ?? "Unknown error")")
+                        completion(videoDownloadURL, nil)
+                        return
+                    }
+                    
+                    print("[PONG] Thumbnail uploaded successfully, URL: \(thumbnailURL)")
+                    
+                    print("[PONG] About to download thumbnailDownloadURL")
+                    // Fetch the download URL for the thumbnail
+                    thumbnailStorageRef.downloadURL { thumbnailDownloadURL, error in
+                        guard let thumbnailDownloadURL = thumbnailDownloadURL else {
+                            print("Thumbnail URL not found: \(error?.localizedDescription ?? "Unknown error")")
+                            completion(videoDownloadURL, nil)
+                            return
+                        }
+                        
+                        print("[PONG] Thumbnail got downloaded successfully, URL: \(thumbnailDownloadURL)")
+                        
+                        print("[PONG] Both uploads are successful, return the URLs")
+                        completion(videoDownloadURL, thumbnailDownloadURL)
+                    }
+                }
+            }
+        }
+    }
+    
     func fetchUserProfile() {
-        guard let userId = currentUserId else { return }
-        
+        guard let userId = Auth.auth().currentUser?.uid else { return }
         let db = Firestore.firestore()
+        
         db.collection("users").document(userId).getDocument { (document, error) in
             if let document = document, document.exists {
                 let data = document.data()
@@ -103,36 +198,47 @@ class FirebaseViewModel: ObservableObject {
     }
 
     // Sign up function
-    func signUp(firstName: String, lastName: String, completion: @escaping (Bool, String) -> Void) {
+    func signUp(firstName: String, lastName: String, username: String, completion: @escaping (Bool, String) -> Void) {
+        // Create a new user account with email and password
         Auth.auth().createUser(withEmail: mail, password: password) { authResult, error in
             if let error = error {
+                // If there's an error in account creation, return the error
                 completion(false, error.localizedDescription)
-            } else if let authResult = authResult {
-                let userId = authResult.user.uid
-                
-                let userData: [String: Any] = [
-                    "firstName": firstName,
-                    "lastName": lastName,
-                    "email": self.mail
-                ]
-                
-                // Store user data in Firestore
-                self.storeUserData(userId: userId, data: userData) { success, message in
-                    if success {
-                        // Update the published properties with the user's name
-                        DispatchQueue.main.async {
-                            self.userFirstName = firstName
-                            self.userLastName = lastName
-                        }
-                    }
-                    completion(success, message)
-                }
-            } else {
+                return
+            }
+            
+            guard let authResult = authResult else {
+                // If the result is nil, an unknown error occurred
                 completion(false, "An unknown error occurred.")
+                return
+            }
+            
+            // Get the user ID of the newly created user
+            let userId = authResult.user.uid
+            
+            // Prepare the additional user data to write to Firestore
+            let userData: [String: Any] = [
+                "firstName": firstName,
+                "lastName": lastName,
+                "email": self.mail,
+                "username": username
+            ]
+            
+            // Store the additional user data in Firestore
+            self.storeUserData(userId: userId, data: userData) { success, message in
+                if success {
+                    // If writing to Firestore succeeded, update the local user properties
+                    DispatchQueue.main.async {
+                        self.userFirstName = firstName
+                        self.userLastName = lastName
+                        self.username = username
+                    }
+                }
+                // Return the result of writing to Firestore
+                completion(success, message)
             }
         }
     }
-
 
     func uploadProfileImage(userId: String, imageData: Data, completion: @escaping (_ url: String?) -> Void) {
             // Create a reference to the Firebase Storage location
@@ -174,13 +280,16 @@ class FirebaseViewModel: ObservableObject {
         }
     }
 
-    private func storeUserData(userId: String, data: [String: Any], completion: @escaping (Bool, String) -> Void) {
+    func storeUserData(userId: String, data: [String: Any], completion: @escaping (Bool, String) -> Void) {
+        // Reference to the Firestore database
         let db = Firestore.firestore()
+        
+        // Set the data for the specific user
         db.collection("users").document(userId).setData(data) { error in
             if let error = error {
-                completion(false, "Error saving user data: \(error.localizedDescription)")
+                completion(false, "Error writing user data: \(error.localizedDescription)")
             } else {
-                completion(true, "User data saved successfully")
+                completion(true, "User data successfully written!")
             }
         }
     }
@@ -466,5 +575,4 @@ class FirebaseViewModel: ObservableObject {
 
     }
 
-    
 }
