@@ -157,7 +157,7 @@ struct ContentView: View {
                                 }
                             }
                         }) {
-                            Text("Authenticate →")
+                            Text("Sign in →")
                         }
                         .alert(
                             "Success",
@@ -328,7 +328,7 @@ struct ContentView: View {
                             }
                         }
                     }) {
-                        Text("Authenticate →")
+                        Text("Sign up →")
                     }
                     .alert(
                         "Success",
