@@ -50,31 +50,78 @@ class FirebaseViewModel: ObservableObject {
     @Published var metadata: SpatialVideoMetadata?
     @Published var spatialVideoMetadataArray: [SpatialVideoMetadata] = []
     
+    @Published var postsWithMetadata: [PostWithMetadata] = []
+    
+    struct PostWithMetadata {
+        var id: String
+        var caption: String
+        var thumbnailURL: String
+        var username: String
+    }
+
+    func fetchPostsWithMetadata() {
+        db.collection("posts").getDocuments { (querySnapshot, err) in
+            if let err = err {
+                print("Error getting documents: \(err)")
+            } else {
+                var tempPosts: [PostWithMetadata] = []
+                for document in querySnapshot!.documents {
+                    let data = document.data()
+                    let postID = document.documentID
+                    let caption = data["caption"] as? String ?? ""
+                    let thumbnailURL = data["thumbnailURL"] as? String ?? ""
+                    let userID = data["userID"] as? String ?? ""
+                    
+                    // Now fetch the username using userID
+                    self.db.collection("users").document(userID).getDocument { (userDoc, userErr) in
+                        if let userErr = userErr {
+                            print("Error fetching user: \(userErr)")
+                        } else if let userDoc = userDoc, userDoc.exists {
+                            let userData = userDoc.data()
+                            let username = userData?["username"] as? String ?? "Unknown"
+                            
+                            // Create a PostWithMetadata object and append it to tempPosts
+                            let postWithMeta = PostWithMetadata(id: postID, caption: caption, thumbnailURL: thumbnailURL, username: username)
+                            tempPosts.append(postWithMeta)
+                            
+                            // Update the published variable
+                            DispatchQueue.main.async {
+                                self.postsWithMetadata = tempPosts
+                            }
+                        } else {
+                            print("User document does not exist")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    
     private var storageRef = Storage.storage().reference()
     private var db = Firestore.firestore()
     
-    func createPost(forUserID userID: String, videoURL: String, thumbnailURL: String, caption: String, username: String) {
+    func createPost(forUserID userID: String, videoURL: String, thumbnailURL: String, caption: String) {
             // Create a reference for a new post ID in the user's sub-collection.
             let userPostRef = db.collection("users").document(userID).collection("posts").document()
             let globalPostRef = db.collection("posts").document(userPostRef.documentID)
             
-            // Prepare the data as per the new structure including the thumbnail URL.
             let postData = [
                 "videoURL": videoURL,
                 "thumbnailURL": thumbnailURL,
                 "caption": caption,
-                "username": username,
-                "timestamp": Timestamp(date: Date()) // Use Firestore's Timestamp for the current time
+                "timestamp": Timestamp(date: Date())
             ] as [String : Any]
             
-            // Add the post to the user's sub-collection.
+            print("Attempting to write to userId: \(userID)")
+            print("Authenticated user's uid: \(Auth.auth().currentUser?.uid ?? "No Auth user found")")
+            
             userPostRef.setData(postData) { error in
                 if let error = error {
                     print("Error adding post to user's collection: \(error.localizedDescription)")
                 } else {
                     print("Post added to user's collection successfully")
                     
-                    // Also add a reference to the global posts collection with userID and thumbnail URL.
                     let globalPostData = postData.merging(["userID": userID]) { (current, _) in current }
                     
                     globalPostRef.setData(globalPostData) { error in
@@ -93,7 +140,15 @@ class FirebaseViewModel: ObservableObject {
         let videoStorageRef = storageRef.child("SpatialFiles/mov/\(uniqueID)/\(uniqueID).mov")
         let thumbnailStorageRef = storageRef.child("SpatialFiles/mov/\(uniqueID)/\(uniqueID)_thumbnail.jpg")
         print("[PONG] About to upload the video")
-        // Upload the video
+        
+        if FileManager.default.fileExists(atPath: videoURL.path) {
+            print("File exists and is ready for upload.")
+        } else {
+            print("File does not exist at path: \(videoURL.path)")
+        }
+        
+        print("Is user authenticated: \(Auth.auth().currentUser != nil)")
+        
         let uploadTaskVideo = videoStorageRef.putFile(from: videoURL, metadata: nil) { metadata, error in
             if let error = error {
                 print("Failed to upload video: \(error.localizedDescription)")
@@ -101,6 +156,7 @@ class FirebaseViewModel: ObservableObject {
             
             guard metadata != nil else {
                 print("Upload failed, metadata is nil.")
+                print("metadata = \(String(describing: metadata))")
                 completion(nil, nil)
                 return
             }
@@ -197,7 +253,6 @@ class FirebaseViewModel: ObservableObject {
         }
     }
 
-    // Sign up function
     func signUp(firstName: String, lastName: String, username: String, completion: @escaping (Bool, String) -> Void) {
         // Create a new user account with email and password
         Auth.auth().createUser(withEmail: mail, password: password) { authResult, error in
@@ -294,7 +349,6 @@ class FirebaseViewModel: ObservableObject {
         }
     }
 
-    // Login function
     func login(completion: @escaping (Bool, String) -> Void) {
         Auth.auth().signIn(withEmail: mail, password: password) { authResult, error in
             if let error = error {
@@ -310,12 +364,10 @@ class FirebaseViewModel: ObservableObject {
         }
     }
     
-    // Check if user is signed in
     func isUserLoggedIn() -> Bool {
         return Auth.auth().currentUser != nil
     }
 
-    // Sign out function
     func signOut() {
         do {
             try Auth.auth().signOut()
@@ -395,110 +447,6 @@ class FirebaseViewModel: ObservableObject {
             }
         }
     }
-    
-    func fetchThumbnailsMetadata(completion: @escaping (Result<[SpatialVideoMetadata], Error>) -> Void) {
-        let baseRef = Storage.storage().reference().child("SpatialFiles/mov/")
-        baseRef.listAll { (baseResult, baseError) in
-            if let baseError = baseError {
-                completion(.failure(baseError))
-                return
-            }
-            
-            // Safely unwrap baseResult
-            guard let baseResult = baseResult else {
-                completion(.failure(NSError(domain: "FirebaseViewModel", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to list directories in base path."])))
-                return
-            }
-            
-            var spatialVideoMetadataList: [SpatialVideoMetadata] = []
-            let group = DispatchGroup()
-            
-            for folderRef in baseResult.prefixes {
-                group.enter()
-                folderRef.listAll { (folderResult, folderError) in
-                    if let folderError = folderError {
-                        print("Error listing folder: \(folderError)")
-                        group.leave()
-                        return
-                    }
-                    
-                    // Safely unwrap folderResult
-                    guard let folderResult = folderResult else {
-                        print("Folder result is nil")
-                        group.leave()
-                        return
-                    }
-                    
-                    for item in folderResult.items {
-                        group.enter()
-                        item.getMetadata { metadata, error in
-                            if let error = error {
-                                print("Error getting metadata for item \(item): \(error)")
-                                group.leave()
-                                return
-                            }
-                            if let metadata = metadata,
-                               let name = metadata.name, // Safely unwrap name here
-                               let timeCreated = metadata.timeCreated,
-                               name.hasSuffix("_thumbnail.jpg") { // Now you can call hasSuffix
-                                item.downloadURL { (thumbnailURL, error) in
-                                    if let error = error {
-                                        print("Error getting download URL for item \(item): \(error)")
-                                        group.leave()
-                                        return
-                                    }
-                                    if let thumbnailDownloadURL = thumbnailURL {
-                                        // Construct the path for the corresponding .mov file
-                                        let videoName = name.replacingOccurrences(of: "_thumbnail.jpg", with: ".mov")
-                                        let videoPath = "SpatialFiles/mov/\(folderRef.name)/\(videoName)"
-                                        let videoStorageRef = Storage.storage().reference().child(videoPath)
-                                        
-                                        // Fetch the download URL for the .mov file
-                                        videoStorageRef.downloadURL { (videoURL, error) in
-                                            if let error = error {
-                                                print("Error getting download URL for video \(videoName): \(error)")
-                                                group.leave()
-                                                return
-                                            }
-                                            
-                                            let videoMetadata = SpatialVideoMetadata(
-                                                thumbnailURL: thumbnailDownloadURL.absoluteString,
-                                                videoURL: videoURL?.absoluteString,
-                                                size: metadata.size,
-                                                timeCreated: timeCreated
-                                            )
-                                            spatialVideoMetadataList.append(videoMetadata)
-                                            
-                                            // Start downloading the file as soon as the URL is available
-                                            if let videoURL = videoURL, !videoURL.absoluteString.isEmpty {
-                                                self.handleFileDownload(metadata: videoMetadata)
-                                            }
-
-                                            group.leave()
-                                        }
-                                    } else {
-                                        group.leave()
-                                    }
-                                }
-                            } else {
-                                group.leave()
-                            }
-                        }
-                    }
-                    
-                    group.leave()
-                }
-            }
-            
-            group.notify(queue: .main) {
-                // Sort by time created, newest first
-                spatialVideoMetadataList.sort { $0.timeCreated > $1.timeCreated }
-                self.spatialVideoMetadataArray = spatialVideoMetadataList
-                completion(.success(spatialVideoMetadataList))
-            }
-        }
-    }
-
     
     class FileDownloader {
         // Function to get the size of a directory

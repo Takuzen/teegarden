@@ -10,6 +10,7 @@
 		CA3A01B42B522DBF00ECEE5A /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = CA3A01B32B522DBF00ECEE5A /* FirebaseStorage */; };
 		CA3A01EC2B552B1A00ECEE5A /* ViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA3A01EB2B552B1A00ECEE5A /* ViewModel.swift */; };
 		CA3FEBB92B731E240056FC5B /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = CA3FEBB82B731E240056FC5B /* GoogleService-Info.plist */; };
+		CA6F733E2B76D3EC00239937 /* tmpPreservingHomeView.swift in Resources */ = {isa = PBXBuildFile; fileRef = CA6F733D2B76D3EC00239937 /* tmpPreservingHomeView.swift */; };
 		CAE2E3932A55904B0035F947 /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = CAE2E3922A55904B0035F947 /* RealityKitContent */; };
 		CAE2E3952A55904B0035F947 /* bookspApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAE2E3942A55904B0035F947 /* bookspApp.swift */; };
 		CAE2E3972A55904B0035F947 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAE2E3962A55904B0035F947 /* ContentView.swift */; };
@@ -41,6 +42,7 @@
 		CA3A01B02B4D20C400ECEE5A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		CA3A01EB2B552B1A00ECEE5A /* ViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewModel.swift; sourceTree = "<group>"; };
 		CA3FEBB82B731E240056FC5B /* GoogleService-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
+		CA6F733D2B76D3EC00239937 /* tmpPreservingHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = tmpPreservingHomeView.swift; sourceTree = "<group>"; };
 		CA73CF8E2AB89F3300FDACBD /* bookspDebug.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = bookspDebug.entitlements; sourceTree = "<group>"; };
 		CAE2E38D2A55904B0035F947 /* booksp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = booksp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CAE2E3912A55904B0035F947 /* RealityKitContent */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = RealityKitContent; sourceTree = "<group>"; };
@@ -108,6 +110,7 @@
 				CA3FEBB82B731E240056FC5B /* GoogleService-Info.plist */,
 				CAE2E3942A55904B0035F947 /* bookspApp.swift */,
 				CAE2E3962A55904B0035F947 /* ContentView.swift */,
+				CA6F733D2B76D3EC00239937 /* tmpPreservingHomeView.swift */,
 				E90D4C532AF600E80038AE6E /* WebView.swift */,
 				CAE2E3982A55904B0035F947 /* ImmersiveView.swift */,
 				CA3A01EB2B552B1A00ECEE5A /* ViewModel.swift */,
@@ -248,6 +251,7 @@
 				CAEB54FE2A7FE35900C172E9 /* .gitignore in Resources */,
 				CAE2E39D2A55904D0035F947 /* Assets.xcassets in Resources */,
 				CA3FEBB92B731E240056FC5B /* GoogleService-Info.plist in Resources */,
+				CA6F733E2B76D3EC00239937 /* tmpPreservingHomeView.swift in Resources */,
 				CAE2E3A02A55904D0035F947 /* Preview Assets.xcassets in Resources */,
 				CAE2E39B2A55904B0035F947 /* ImageBasedLight.exr in Resources */,
 			);

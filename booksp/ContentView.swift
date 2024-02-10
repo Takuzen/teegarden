@@ -368,31 +368,26 @@ struct ContentView: View {
 
 struct DetailView: View {
     
-    @StateObject var firebase = FirebaseViewModel()
-    
+    let postID: String
+    @ObservedObject var firebaseViewModel: FirebaseViewModel
+
+    // You can also include other properties you need for displaying the details
+
     var body: some View {
-        // Safely unwrap the first item of the array
-        if let firstMetadata = firebase.spatialVideoMetadataArray.first {
-            // Prefer the localURL if available, otherwise fall back to the videoURL
-            let url = firstMetadata.localURL ?? URL(string: firstMetadata.videoURL ?? "")
-            
-            Text("Detail no metadata")
-                .onAppear {
-                       print("firstMetadata.localURL is: \(firstMetadata.localURL)")
-                   }
-            
-            // Safely unwrap the URL and create a URL object
-            if let url = url {
-                USDZQLPreview(url: url) // Display the video preview from the local URL
+        // Your detail view content goes here
+        // Use the postID to fetch or reference the specific post's details
+        Text("Details for post ID: \(postID)")
+        // Example of fetching the post's details
+        VStack {
+            if let post = firebaseViewModel.postsWithMetadata.first(where: { $0.id == postID }) {
+                Text(post.caption)
+                // Display other post details
             } else {
-                Text("Invalid or missing URL") // Show an error message if the URL is invalid or missing
+                Text("Post details not found.")
             }
-        } else {
-            Text("Metadata is empty") // Show an error message if there are no metadata items
         }
     }
 }
-
 
 
 struct homeView: View {
@@ -434,77 +429,40 @@ struct homeView: View {
                         let rows = [GridItem(.flexible(minimum: 10, maximum: .infinity), spacing: 20)]
                         
                         LazyHGrid(rows: rows, spacing: 20) {
-                            ForEach(firebaseViewModel.spatialVideoMetadataArray, id: \.thumbnailURL) { metadata in
-                                NavigationLink(destination: DetailView()) {
+                            ForEach(firebaseViewModel.postsWithMetadata, id: \.id) { postWithMeta in
+                                NavigationLink(destination: DetailView(postID: postWithMeta.id, firebaseViewModel: firebaseViewModel)) {
                                     VStack {
                                         HStack {
-                                            if let profileImageURL = firebaseViewModel.userProfileImageURL {
-                                                AsyncImage(url: profileImageURL) { phase in
-                                                    if let image = phase.image {
-                                                        image.resizable() // Image successfully loaded
-                                                            .aspectRatio(contentMode: .fill)
-                                                    } else if phase.error != nil {
-                                                        Image(systemName: "person.circle") // If an error occurred during image loading
-                                                            .resizable()
-                                                            .frame(width: 40, height: 40)
-                                                            .clipShape(Circle())
-                                                    } else {
-                                                        Image(systemName: "person.circle") // Placeholder for loading state
-                                                            .resizable()
-                                                            .frame(width: 40, height: 40)
-                                                            .clipShape(Circle())
-                                                    }
-                                                }
-                                                .scaledToFit()
-                                                .frame(width: 40, height: 40)
-                                                .clipShape(Circle())
-                                            } else {
-                                                Image(systemName: "person.circle")
-                                                    .resizable()
-                                                    .frame(width: 30, height: 30)
-                                                    .clipShape(Circle())
-                                            }
-                                            
-                                            Text(firebaseViewModel.username)
+                                            Text(postWithMeta.username)
                                                 .padding(.leading, 5)
-                                            
+
                                             Spacer()
                                         }
                                         .padding(.bottom, 20)
                                         
-                                        AsyncImage(url: URL(string: metadata.thumbnailURL)) { phase in
-                                            if let image = phase.image {
-                                                image
-                                                    .resizable()
+                                        AsyncImage(url: URL(string: postWithMeta.thumbnailURL)) { phase in
+                                            switch phase {
+                                            case .success(let image):
+                                                image.resizable()
                                                     .scaledToFill()
                                                     .frame(width: 600, height: 247.22)
                                                     .clipped()
                                                     .transition(.opacity)
                                                     .clipShape(RoundedRectangle(cornerRadius: 10))
-                                            } else if phase.error != nil {
+                                            case .failure(_):
                                                 Color.red
-                                            } else {
-                                                ZStack {
-                                                    Color.gray
-                                                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                                                    
-                                                    VStack {
-                                                        Spacer()
-                                                        HStack {
-                                                            ProgressView()
-                                                                .frame(width: 840, height: 500)
-                                                                .clipped()
-                                                        }
-                                                        Spacer()
-                                                    }
-                                                }
+                                            case .empty:
+                                                ProgressView()
+                                            @unknown default:
+                                                EmptyView()
                                             }
                                         }
                                         
-                                        if let caption = metadata.caption {
-                                            Text(caption)
+                                        if !postWithMeta.caption.isEmpty {
+                                            Text(postWithMeta.caption)
                                                 .padding(.top, 20)
                                         }
+                                        
                                     }
                                 }
                                 .frame(width: 600, height: 800)
@@ -515,28 +473,15 @@ struct homeView: View {
                         .padding(.bottom, 10)
                         .frame(width: geometry.size.width, height: geometry.size.height / 1.5)
                         
-                        Spacer()
                     }
+                    .background(Color.blue.opacity(0.3)) // for debug
                     .frame(width: geometry.size.width, height: geometry.size.height / 3 * 2 + 100)
                     .onAppear {
-                        firebaseViewModel.fetchThumbnailsMetadata() { result in
-                            switch result {
-                            case .success(let thumbnails):
-                                print("Successfully fetched thumbnails: \(thumbnails)")
-                            case .failure(let error):
-                                print("Error fetching thumbnails: \(error)")
-                            }
-                        }
+                        print("Fetching posts with metadata...")
+                        firebaseViewModel.fetchPostsWithMetadata()
                     }
                     .onReceive(timer) { _ in
-                        firebaseViewModel.fetchThumbnailsMetadata() { result in
-                            switch result {
-                            case .success(let thumbnails):
-                                print("Successfully fetched thumbnails: \(thumbnails)")
-                            case .failure(let error):
-                                print("Error fetching thumbnails: \(error)")
-                            }
-                        }
+                        firebaseViewModel.fetchPostsWithMetadata()
                     }
                     .padding()
                 }
@@ -661,6 +606,7 @@ struct userAllView: View {
                 }
                 .buttonStyle(PlainButtonStyle())
                 .foregroundColor(.red)
+                
 
                 Spacer()
             }
@@ -1159,7 +1105,7 @@ struct Add3DModelView: View {
                                         
                                         print("[PONG] caption is: \(captionText)")
                                         
-                                        firebase.createPost(forUserID: userID, videoURL: videoDownloadURL.absoluteString, thumbnailURL: thumbnailDownloadURL.absoluteString, caption: captionText, username: username)
+                                        firebase.createPost(forUserID: userID, videoURL: videoDownloadURL.absoluteString, thumbnailURL: thumbnailDownloadURL.absoluteString, caption: captionText)
                                         
                                         // Indicate that posting was successful
                                         DispatchQueue.main.async {
