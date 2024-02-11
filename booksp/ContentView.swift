@@ -367,28 +367,37 @@ struct ContentView: View {
 // MARK: - ContentView END
 
 struct DetailView: View {
-    
     let postID: String
     @ObservedObject var firebaseViewModel: FirebaseViewModel
-
-    // You can also include other properties you need for displaying the details
+    @State private var localVideoURL: URL?
 
     var body: some View {
-        // Your detail view content goes here
-        // Use the postID to fetch or reference the specific post's details
-        Text("Details for post ID: \(postID)")
-        // Example of fetching the post's details
         VStack {
-            if let post = firebaseViewModel.postsWithMetadata.first(where: { $0.id == postID }) {
+            if let post = firebaseViewModel.postsWithMetadata.first(where: { $0.id == postID }), let videoURL = post.videoURL {
+                if let localVideoURL = localVideoURL {
+                    USDZQLPreview(url: localVideoURL)
+                } else {
+                    Text("Downloading video...")
+                        .onAppear {
+                            firebaseViewModel.downloadVideoFileForQL(from: videoURL) { result in
+                                switch result {
+                                case .success(let url):
+                                    self.localVideoURL = url
+                                case .failure(let error):
+                                    print("Error downloading video: \(error.localizedDescription)")
+                                }
+                            }
+                        }
+                }
+                
                 Text(post.caption)
-                // Display other post details
+                
             } else {
                 Text("Post details not found.")
             }
         }
     }
 }
-
 
 struct homeView: View {
     @ObservedObject var firebaseViewModel = FirebaseViewModel()
@@ -433,9 +442,37 @@ struct homeView: View {
                                 NavigationLink(destination: DetailView(postID: postWithMeta.id, firebaseViewModel: firebaseViewModel)) {
                                     VStack {
                                         HStack {
+                                            if let profileImageURL = firebaseViewModel.userProfileImageURL {
+                                                AsyncImage(url: profileImageURL) { phase in
+                                                    switch phase {
+                                                    case .success(let image):
+                                                        image.resizable()
+                                                             .aspectRatio(contentMode: .fill)
+                                                             .frame(width: 40, height: 40)
+                                                             .clipShape(Circle())
+                                                    case .failure(_):
+                                                        Image(systemName: "person.crop.circle.fill")
+                                                             .resizable()
+                                                             .frame(width: 30, height: 30)
+                                                             .clipShape(Circle())
+                                                    case .empty:
+                                                        ProgressView()
+                                                    @unknown default:
+                                                        EmptyView()
+                                                    }
+                                                }
+                                            } else {
+                                                Image(systemName: "person.crop.circle.fill")
+                                                     .resizable()
+                                                     .frame(width: 30, height: 30)
+                                                     .clipShape(Circle())
+                                            }
+                                            
                                             Text(postWithMeta.username)
                                                 .padding(.leading, 5)
-
+                                                .onAppear{
+                                                    print("userProfileImageURL: \(firebaseViewModel.userProfileImageURL)")
+                                                }
                                             Spacer()
                                         }
                                         .padding(.bottom, 20)
@@ -474,11 +511,11 @@ struct homeView: View {
                         .frame(width: geometry.size.width, height: geometry.size.height / 1.5)
                         
                     }
-                    .background(Color.blue.opacity(0.3)) // for debug
                     .frame(width: geometry.size.width, height: geometry.size.height / 3 * 2 + 100)
                     .onAppear {
                         print("Fetching posts with metadata...")
                         firebaseViewModel.fetchPostsWithMetadata()
+                        firebaseViewModel.fetchUserProfile()
                     }
                     .onReceive(timer) { _ in
                         firebaseViewModel.fetchPostsWithMetadata()
@@ -612,8 +649,30 @@ struct userAllView: View {
             }
             .navigationTitle("My Space")
             .navigationBarTitleDisplayMode(.inline)
-            .sheet(isPresented: $showingImagePicker) {
+            .sheet(isPresented: $showingImagePicker, onDismiss: handleImageSelectionForUpload) {
                 ImagePicker(selectedImage: $inputImage)
+            }
+
+        }
+    }
+    
+    // This function is called when the image picker is dismissed and an image is selected
+    func handleImageSelectionForUpload() {
+        guard let userID = Auth.auth().currentUser?.uid, let imageToUpload = inputImage else { return }
+        
+        firebase.uploadProfileImage(userID: userID, image: imageToUpload) { result in
+            switch result {
+            case .success(let url):
+                print("Uploaded Profile Image URL: \(url)")
+                firebase.updateUserProfileImageURL(userID: userID, imageURL: url) { error in
+                    if let error = error {
+                        print("Error updating user profile with image URL: \(error.localizedDescription)")
+                    } else {
+                        print("User profile image URL updated successfully.")
+                    }
+                }
+            case .failure(let error):
+                print("Error uploading profile image: \(error.localizedDescription)")
             }
         }
     }
@@ -940,22 +999,6 @@ struct Add3DModelView: View {
             } else {
                 print("Could not convert UIImage to Data")
                 completion(nil)
-            }
-        }
-    }
-    
-    private func postModel(with confirmedURL: URL, thumbnailURL: URL?) {
-        let fileType = confirmedURL.pathExtension.lowercased()
-        isLoadingModel = true
-        
-        FirebaseViewModel.shared.uploadCube(modelURL: confirmedURL, thumbnailURL: thumbnailURL, fileType: fileType) { result in
-            isLoadingModel = false
-            switch result {
-            case .success(let urls):
-                print("Model and thumbnail uploaded successfully. Model URL: \(urls.modelURL), Thumbnail URL: \(String(describing: urls.thumbnailURL))")
-            case .failure(let error):
-                print("Upload failed with error: \(error.localizedDescription)")
-                // Handle the error, update UI, etc.
             }
         }
     }
