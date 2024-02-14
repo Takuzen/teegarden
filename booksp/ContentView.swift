@@ -369,29 +369,13 @@ struct ContentView: View {
 struct DetailView: View {
     let postID: String
     @ObservedObject var firebaseViewModel: FirebaseViewModel
-    @State private var localVideoURL: URL?
+    let localFileURL: URL
 
     var body: some View {
         VStack {
-            if let post = firebaseViewModel.postsWithMetadata.first(where: { $0.id == postID }), let videoURL = post.videoURL {
-                if let localVideoURL = localVideoURL {
-                    USDZQLPreview(url: localVideoURL)
-                } else {
-                    Text("Downloading video...")
-                        .onAppear {
-                            firebaseViewModel.downloadVideoFileForQL(from: videoURL) { result in
-                                switch result {
-                                case .success(let url):
-                                    self.localVideoURL = url
-                                case .failure(let error):
-                                    print("Error downloading video: \(error.localizedDescription)")
-                                }
-                            }
-                        }
-                }
-                
+            if let post = firebaseViewModel.postsWithMetadata.first(where: { $0.id == postID }) {
+                USDZQLPreview(url: localFileURL)
                 Text(post.caption)
-                
             } else {
                 Text("Post details not found.")
             }
@@ -401,17 +385,15 @@ struct DetailView: View {
 
 struct homeView: View {
     @ObservedObject var firebaseViewModel = FirebaseViewModel()
-    
+    @State private var localFileURLs: [String: URL] = [:]
     @State private var fileURLs: [URL] = []
     
     let timer = Timer.publish(every: 10, on: .main, in: .common).autoconnect()
     let customColor = Color(red: 0.988, green: 0.169, blue: 0.212)
     
-    
     var body: some View {
         GeometryReader { geometry in
             VStack {
-                
                 HStack {
                     Image("teegarden-logo-nobg")
                         .resizable()
@@ -439,7 +421,7 @@ struct homeView: View {
                         
                         LazyHGrid(rows: rows, spacing: 20) {
                             ForEach(firebaseViewModel.postsWithMetadata, id: \.id) { postWithMeta in
-                                NavigationLink(destination: DetailView(postID: postWithMeta.id, firebaseViewModel: firebaseViewModel)) {
+                                NavigationLink(destination: DetailView(postID: postWithMeta.id, firebaseViewModel: firebaseViewModel, localFileURL: localFileURLs[postWithMeta.id] ?? URL(fileURLWithPath: ""))) {
                                     VStack {
                                         HStack {
                                             if let profileImageURL = firebaseViewModel.userProfileImageURL {
@@ -477,33 +459,66 @@ struct homeView: View {
                                         }
                                         .padding(.bottom, 20)
                                         
-                                        AsyncImage(url: URL(string: postWithMeta.thumbnailURL)) { phase in
-                                            switch phase {
-                                            case .success(let image):
-                                                image.resizable()
-                                                    .scaledToFill()
+                                        switch postWithMeta.fileType {
+                                        case "mov":
+                                            if let thumbnailURLString = postWithMeta.thumbnailURL, let url = URL(string: thumbnailURLString) {
+                                                AsyncImage(url: url) { phase in
+                                                    switch phase {
+                                                    case .success(let image):
+                                                        image.resizable()
+                                                            .scaledToFill()
+                                                            .frame(width: 600, height: 247.22)
+                                                            .clipped()
+                                                            .transition(.opacity)
+                                                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                                                    case .failure(_), .empty:
+                                                        Color.red
+                                                    @unknown default:
+                                                        EmptyView()
+                                                    }
+                                                }
+                                            } else {
+                                                Text("No thumbnail available")
                                                     .frame(width: 600, height: 247.22)
-                                                    .clipped()
-                                                    .transition(.opacity)
+                                                    .background(Color.gray.opacity(0.5))
                                                     .clipShape(RoundedRectangle(cornerRadius: 10))
-                                            case .failure(_):
-                                                Color.red
-                                            case .empty:
-                                                ProgressView()
-                                            @unknown default:
-                                                EmptyView()
                                             }
+                                        case "usdz", "reality":
+                                            Model3D(url: URL(string: postWithMeta.videoURL)!) { model in
+                                                model
+                                                    .resizable()
+                                                    .aspectRatio(contentMode: .fit)
+                                            } placeholder: {
+                                                ProgressView()
+                                            }
+                                            .frame(width: 600, height: 247.22)
+                                        default:
+                                            Text("Unsupported or no preview available")
+                                                .frame(width: 600, height: 247.22)
+                                                .background(Color.gray.opacity(0.5))
+                                                .clipShape(RoundedRectangle(cornerRadius: 10))
                                         }
                                         
                                         if !postWithMeta.caption.isEmpty {
                                             Text(postWithMeta.caption)
                                                 .padding(.top, 20)
                                         }
-                                        
                                     }
                                 }
                                 .frame(width: 600, height: 800)
                                 .buttonStyle(PlainButtonStyle())
+                                .onAppear {
+                                    if localFileURLs[postWithMeta.id] == nil {
+                                        firebaseViewModel.downloadVideoFileForQL(from: postWithMeta.videoURL, fileType: postWithMeta.fileType) { result in
+                                            switch result {
+                                            case .success(let url):
+                                                localFileURLs[postWithMeta.id] = url
+                                            case .failure(let error):
+                                                print("Error downloading video for post \(postWithMeta.id): \(error.localizedDescription)")
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                         .padding(.top, 10)
@@ -527,6 +542,7 @@ struct homeView: View {
         }
     }
 }
+
     
 struct ImagePicker: UIViewControllerRepresentable {
     @Binding var selectedImage: UIImage?
@@ -581,18 +597,31 @@ struct userAllView: View {
     var body: some View {
         NavigationStack {
             VStack {
-                // Profile Image
-                if let inputImage = inputImage {
-                    Image(uiImage: inputImage)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 100, height: 100)
-                        .clipShape(Circle())
+                if let profileImageURL = firebase.userProfileImageURL {
+                    AsyncImage(url: profileImageURL) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image.resizable()
+                                 .aspectRatio(contentMode: .fill)
+                                 .frame(width: 40, height: 40)
+                                 .clipShape(Circle())
+                        case .failure(_):
+                            Image(systemName: "person.crop.circle.fill")
+                                 .resizable()
+                                 .frame(width: 30, height: 30)
+                                 .clipShape(Circle())
+                        case .empty:
+                            ProgressView()
+                        @unknown default:
+                            EmptyView()
+                        }
+                    }
                 } else {
                     VStack {
                         Image(systemName: "person.circle")
                             .resizable()
-                            .frame(width: 40, height: 40)
+                            .frame(width: 30, height: 30)
+                            .clipShape(Circle())
                         Button("Upload Profile Image") {
                             showingImagePicker = true
                         }
@@ -884,7 +913,7 @@ struct Add3DModelView: View {
     
     let allowedContentTypes: [UTType] = [.usdz, .reality, .movie]
     
-    func handleModelSelection(urls: [URL], shouldOverwrite: Bool = false) {
+    func handleCubeSelection(urls: [URL], shouldOverwrite: Bool = false) {
         print("handleModelSelection called with URLs: \(urls)")
         guard let firstModelURL = urls.first else {
             print("No URL found in the array.")
@@ -896,7 +925,9 @@ struct Add3DModelView: View {
         print("Can access firstModelURL: \(canAccess)")
         
         if canAccess {
-            if firstModelURL.pathExtension.lowercased() == "mov" {
+            switch firstModelURL.pathExtension.lowercased() {
+            case "mov":
+                print("Handling a .mov file")
                 generateThumbnail(url: firstModelURL) { thumbnailURL in
                     DispatchQueue.main.async {
                         self.thumbnailURL = thumbnailURL
@@ -909,8 +940,15 @@ struct Add3DModelView: View {
                         }
                     }
                 }
-            } else {
-                processModel(thumbnailURL: thumbnailURL, originalURL: firstModelURL, shouldOverwrite: shouldOverwrite)
+            case "usdz", "reality":
+                print("Handling a .usdz or .reality file")
+                // For usdz and reality files, directly process the model without a thumbnail
+                self.processModel(thumbnailURL: nil, originalURL: firstModelURL, shouldOverwrite: shouldOverwrite)
+            default:
+                print("Unsupported file type.")
+                DispatchQueue.main.async {
+                    self.showAlertWith(message: "Unsupported file type.")
+                }
             }
         } else {
             DispatchQueue.main.async {
@@ -920,20 +958,18 @@ struct Add3DModelView: View {
         }
     }
 
+
     func processModel(thumbnailURL: URL?, originalURL: URL, shouldOverwrite: Bool) {
         Task {
             let thumbnailUrlReadyForSavingToTmp = thumbnailURL
             let modelUrlReadyForSavingToTmp = originalURL
-            print(modelUrlReadyForSavingToTmp)
-            print(thumbnailUrlReadyForSavingToTmp)
+
             let result = await saveModelToTemporaryFolder(modelURL: modelUrlReadyForSavingToTmp, thumbnailURL: thumbnailUrlReadyForSavingToTmp, overwrite: shouldOverwrite)
             print(result)
             
             switch result {
             case .success(let savedURL):
                 DispatchQueue.main.async { /// what does this mean DispatchQue.main.async, async and await are not understood.
-                    print(savedURL.model)
-                    print(savedURL.thumbnail)
                     self.savedModelURL = savedURL.model
                     self.savedThumbnailURL = savedURL.thumbnail
                     self.isPreviewing = true
@@ -1003,7 +1039,7 @@ struct Add3DModelView: View {
         }
     }
 
-    struct ModelPreviewView: View {
+    struct CubePreviewView: View {
         @Binding var savedModelURL: URL?
         @Binding var savedThumbnailURL: URL?
         @Binding var isPreviewing: Bool
@@ -1024,16 +1060,10 @@ struct Add3DModelView: View {
                             }
                             
                             if url.pathExtension.lowercased() == "usdz" || url.pathExtension.lowercased() == "reality" {
-                                Model3D(url: url) { model in
-                                    model
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fit)
-                                        .frame(width: 200, height: 200)
-                                    
-                                } placeholder: {
-                                        ProgressView()
-                                }
-                                .padding()
+                                
+                                USDZQLPreview(url: url)
+                                    .padding()
+                                
                             } else if url.pathExtension.lowercased() == "mov", let thumbnail = savedThumbnailURL {
                                 AsyncImage(url: thumbnail) { image in
                                     image
@@ -1047,21 +1077,25 @@ struct Add3DModelView: View {
                                 Text("Unsupported file type or no preview available")
                             }
                             
-                            Button("Confirm") {
-                                confirmedModelURL = savedModelURL
-                                confirmedThumbnailURL = savedThumbnailURL
-                                isPreviewing = false
+                            HStack {
+                                
+                                Button("Cancel") {
+                                    isPreviewing = false
+                                }
+                                .padding()
+                                .foregroundColor(.white)
+                                .cornerRadius(8)
+                                
+                                Button("Confirm") {
+                                    confirmedModelURL = savedModelURL
+                                    confirmedThumbnailURL = savedThumbnailURL
+                                    isPreviewing = false
+                                }
+                                .padding()
+                                .foregroundColor(.white)
+                                .cornerRadius(8)
+                                
                             }
-                            .padding()
-                            .foregroundColor(.white)
-                            .cornerRadius(8)
-                            
-                            Button("Cancel") {
-                                isPreviewing = false
-                            }
-                            .padding()
-                            .foregroundColor(.white)
-                            .cornerRadius(8)
                         }
                     }
                 } else {
@@ -1085,27 +1119,9 @@ struct Add3DModelView: View {
                             ProgressView()
                         }
                     } else {
-                        Model3D(url: modelURL) { model in
-                            model
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 200, height: 200)
-                            
-                        } placeholder: {
-                            if isLoadingModel {
-                                ProgressView()
-                                    .onAppear {
-                                        DispatchQueue.main.asyncAfter(deadline: .now() + 20) {
-                                            if isLoadingModel {
-                                                alertMessage = "Loading timeout. Please try a different model."
-                                                showAlert = true
-                                                isLoadingModel = false
-                                            }
-                                        }
-                                    }
-                            }
-                        }
-                        .padding()
+                        
+                        USDZQLPreview(url:modelURL)
+                        
                     }
                     
                     /*
@@ -1125,49 +1141,50 @@ struct Add3DModelView: View {
                         Spacer()
                         Button("Post →") {
                             print("[PONG] Post button got clicked.")
-                            if let confirmedMainURL = confirmedModelURL, let confirmedThumbnailURL = confirmedThumbnailURL {
-                                print("[PONG] confirmedMainURL and confirmedThumbnailURL are passed.")
-                                firebase.uploadVideoAndThumbnail(videoURL: confirmedMainURL, thumbnailURL: confirmedThumbnailURL) { videoDownloadURL, thumbnailDownloadURL in
+                            if let confirmedMainURL = confirmedModelURL {
+                                let fileType = confirmedMainURL.pathExtension.lowercased()
+                                let thumbnailURL = (fileType == "mov") ? confirmedThumbnailURL : nil
+                                
+                                print("[PONG] confirmedMainURL is passed.")
+                                firebase.uploadFileAndThumbnail(fileURL: confirmedMainURL, thumbnailURL: thumbnailURL, fileType: fileType) { fileDownloadURL, thumbnailDownloadURL in
                                     
-                                    if let videoDownloadURL = videoDownloadURL, let thumbnailDownloadURL = thumbnailDownloadURL {
-                                        
-                                        print("[PONG] videoDownloadURL and thumbnailDownloadURL got.")
-
-                                        guard let userID = Auth.auth().currentUser?.uid else {
+                                    guard let fileDownloadURL = fileDownloadURL else {
+                                        DispatchQueue.main.async {
+                                            alertMessage = "Failed to upload the file."
+                                            showAlert = true
+                                        }
+                                        return
+                                    }
+                                    
+                                    guard let userID = Auth.auth().currentUser?.uid else {
+                                        DispatchQueue.main.async {
                                             alertMessage = "You need to be logged in to post."
                                             showAlert = true
-                                            return
                                         }
-                                        
-                                        print("[PONG] userID (\(userID)) is acquired")
-                                        let username = firebase.username
-                                        
-                                        print("[PONG] username (\(username)) got.")
-                                        
-                                        print("[PONG] About to run createPost function.")
-                                        
-                                        print("[PONG] caption is: \(captionText)")
-                                        
-                                        firebase.createPost(forUserID: userID, videoURL: videoDownloadURL.absoluteString, thumbnailURL: thumbnailDownloadURL.absoluteString, caption: captionText)
-                                        
-                                        // Indicate that posting was successful
-                                        DispatchQueue.main.async {
-                                            isPostingSuccessful = true
-                                            print("[PONG] Post success!")
-                                        }
-                                    } else {
-                                        // Handle the error: either the video or thumbnail failed to upload
-                                        DispatchQueue.main.async {
-                                            alertMessage = "Failed to upload the model or thumbnail."
-                                            showAlert = true
-                                        }
+                                        return
+                                    }
+                                    
+                                    let thumbnailURLString = thumbnailDownloadURL?.absoluteString ?? ""
+
+                                    print("[PONG] About to run createPost function.")
+                                    print("[PONG] caption is: \(captionText)")
+                                    
+                                    firebase.createPost(forUserID: userID, videoURL: fileDownloadURL.absoluteString, thumbnailURL: thumbnailURLString, caption: captionText, fileType: fileType)
+                                    
+                                    // Indicate that posting was successful
+                                    DispatchQueue.main.async {
+                                        isPostingSuccessful = true
+                                        print("[PONG] Post success!")
                                     }
                                 }
                             } else {
-                                alertMessage = "Please confirm the model before posting."
-                                showAlert = true
+                                DispatchQueue.main.async {
+                                    alertMessage = "Please confirm the file before posting."
+                                    showAlert = true
+                                }
                             }
                         }
+
                     }
                     .padding()
                 }
@@ -1189,7 +1206,7 @@ struct Add3DModelView: View {
                         case .success(let urls):
                             isLoadingModel = true
                             selectedModelURL = urls.first
-                            handleModelSelection(urls: urls)
+                            handleCubeSelection(urls: urls)
                         case .failure(let error):
                             alertMessage = "Error selecting file: \(error.localizedDescription)"
                             showAlert = true
@@ -1202,7 +1219,7 @@ struct Add3DModelView: View {
                     ) {
                         Button(role: .destructive) {
                             if let selectedModelURL = selectedModelURL {
-                                handleModelSelection(urls: [selectedModelURL], shouldOverwrite: true)
+                                handleCubeSelection(urls: [selectedModelURL], shouldOverwrite: true)
                             }
                         } label: {
                             Text("Overwrite")
@@ -1224,7 +1241,7 @@ struct Add3DModelView: View {
                     */
 
                     .sheet(isPresented: $isPreviewing) {
-                        ModelPreviewView(
+                        CubePreviewView(
                                 savedModelURL: $savedModelURL,
                                 savedThumbnailURL: $savedThumbnailURL,
                                 isPreviewing: $isPreviewing,

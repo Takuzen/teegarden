@@ -38,19 +38,22 @@ class FirebaseViewModel: ObservableObject {
     @Published var fileURLs: [URL] = []
     
     @Published var postsWithMetadata: [PostWithMetadata] = []
+
     
     struct PostWithMetadata {
         var id: String
         var caption: String
-        var thumbnailURL: String
+        var thumbnailURL: String?
         var username: String
-        var videoURL: String?
+        var videoURL: String
+        var fileType: String
     }
 
     func fetchPostsWithMetadata() {
         db.collection("posts").getDocuments { (querySnapshot, err) in
             if let err = err {
                 print("Error getting documents: \(err)")
+                return
             } else {
                 var tempPosts: [PostWithMetadata] = []
                 for document in querySnapshot!.documents {
@@ -58,10 +61,13 @@ class FirebaseViewModel: ObservableObject {
                     let postID = document.documentID
                     let caption = data["caption"] as? String ?? ""
                     let thumbnailURL = data["thumbnailURL"] as? String ?? ""
-                    let videoURL = data["videoURL"] as? String
                     let userID = data["userID"] as? String ?? ""
+                    let videoURL = data["videoURL"] as? String ?? ""
+                    let fileType = data["fileType"] as? String ?? ""
                     
-                    // Now fetch the username using userID
+                    print("Fetching user data for userID: \(userID)")
+
+                    // Fetch the username using userID
                     self.db.collection("users").document(userID).getDocument { (userDoc, userErr) in
                         if let userErr = userErr {
                             print("Error fetching user: \(userErr)")
@@ -69,8 +75,8 @@ class FirebaseViewModel: ObservableObject {
                             let userData = userDoc.data()
                             let username = userData?["username"] as? String ?? "Unknown"
                             
-                            // Include the videoURL when creating a PostWithMetadata object
-                            let postWithMeta = PostWithMetadata(id: postID, caption: caption, thumbnailURL: thumbnailURL, username: username, videoURL: videoURL)
+                            // Create a PostWithMetadata object with fileType and append it to tempPosts
+                            let postWithMeta = PostWithMetadata(id: postID, caption: caption, thumbnailURL: thumbnailURL, username: username, videoURL: videoURL, fileType: fileType)
                             tempPosts.append(postWithMeta)
                             
                             // Update the published variable
@@ -78,7 +84,7 @@ class FirebaseViewModel: ObservableObject {
                                 self.postsWithMetadata = tempPosts
                             }
                         } else {
-                            print("User document does not exist")
+                            print("User document does not exist for userID: \(userID)")
                         }
                     }
                 }
@@ -89,8 +95,8 @@ class FirebaseViewModel: ObservableObject {
     private var storageRef = Storage.storage().reference()
     private var db = Firestore.firestore()
     
-    func createPost(forUserID userID: String, videoURL: String, thumbnailURL: String, caption: String) {
-            // Create a reference for a new post ID in the user's sub-collection.
+    func createPost(forUserID userID: String, videoURL: String, thumbnailURL: String, caption: String, fileType: String) {
+ 
             let userPostRef = db.collection("users").document(userID).collection("posts").document()
             let globalPostRef = db.collection("posts").document(userPostRef.documentID)
             
@@ -98,7 +104,8 @@ class FirebaseViewModel: ObservableObject {
                 "videoURL": videoURL,
                 "thumbnailURL": thumbnailURL,
                 "caption": caption,
-                "timestamp": Timestamp(date: Date())
+                "timestamp": Timestamp(date: Date()),
+                "fileType": fileType
             ] as [String : Any]
             
             print("Attempting to write to userId: \(userID)")
@@ -123,75 +130,64 @@ class FirebaseViewModel: ObservableObject {
             }
         }
     
-    func uploadVideoAndThumbnail(videoURL: URL, thumbnailURL: URL, completion: @escaping (URL?, URL?) -> Void) {
+    func uploadFileAndThumbnail(fileURL: URL, thumbnailURL: URL?, fileType: String, completion: @escaping (URL?, URL?) -> Void) {
         let uniqueID = UUID().uuidString
-        let videoStorageRef = storageRef.child("SpatialFiles/mov/\(uniqueID)/\(uniqueID).mov")
-        let thumbnailStorageRef = storageRef.child("SpatialFiles/mov/\(uniqueID)/\(uniqueID)_thumbnail.jpg")
-        print("[PONG] About to upload the video")
+        let fileStorageRef = storageRef.child("SpatialFiles/\(fileType)/\(uniqueID)/\(uniqueID).\(fileType)")
+        var thumbnailStorageRef: StorageReference?
+        if let thumbnailURL = thumbnailURL {
+            thumbnailStorageRef = storageRef.child("SpatialFiles/\(fileType)/\(uniqueID)/\(uniqueID)_thumbnail.jpg")
+        }
         
-        if FileManager.default.fileExists(atPath: videoURL.path) {
+        print("[PONG] About to upload the file")
+        
+        if FileManager.default.fileExists(atPath: fileURL.path) {
             print("File exists and is ready for upload.")
         } else {
-            print("File does not exist at path: \(videoURL.path)")
+            print("File does not exist at path: \(fileURL.path)")
         }
         
         print("Is user authenticated: \(Auth.auth().currentUser != nil)")
         
-        let uploadTaskVideo = videoStorageRef.putFile(from: videoURL, metadata: nil) { metadata, error in
+        let uploadTaskFile = fileStorageRef.putFile(from: fileURL, metadata: nil) { metadata, error in
             if let error = error {
-                print("Failed to upload video: \(error.localizedDescription)")
-            }
-            
-            guard metadata != nil else {
-                print("Upload failed, metadata is nil.")
-                print("metadata = \(String(describing: metadata))")
+                print("Failed to upload file: \(error.localizedDescription)")
                 completion(nil, nil)
                 return
             }
             
-            print("[PONG] Video uploaded successfully, URL: \(videoURL)")
+            guard metadata != nil else {
+                print("Upload failed, metadata is nil.")
+                completion(nil, nil)
+                return
+            }
             
-            print("[PONG] About to fetch videodownload URL.")
-            
-            // Fetch the download URL for the video
-            videoStorageRef.downloadURL { videoDownloadURL, error in
-                guard let videoDownloadURL = videoDownloadURL else {
-                    print("Video URL not found: \(error?.localizedDescription ?? "Unknown error")")
-                    completion(nil, nil)
-                    return
-                }
-                
-                print("[PONG] video got Downloaded successfully, URL: \(videoDownloadURL)")
-                
-                print("[PONG] About to upload thumbnail")
-                // Upload the thumbnail
-                let uploadTaskThumbnail = thumbnailStorageRef.putFile(from: thumbnailURL, metadata: nil) { metadata, error in
-                    guard metadata != nil else {
-                        print("Failed to upload thumbnail: \(error?.localizedDescription ?? "Unknown error")")
-                        completion(videoDownloadURL, nil)
-                        return
-                    }
-                    
-                    print("[PONG] Thumbnail uploaded successfully, URL: \(thumbnailURL)")
-                    
-                    print("[PONG] About to download thumbnailDownloadURL")
-                    // Fetch the download URL for the thumbnail
-                    thumbnailStorageRef.downloadURL { thumbnailDownloadURL, error in
-                        guard let thumbnailDownloadURL = thumbnailDownloadURL else {
-                            print("Thumbnail URL not found: \(error?.localizedDescription ?? "Unknown error")")
-                            completion(videoDownloadURL, nil)
+            fileStorageRef.downloadURL { fileDownloadURL, error in
+                if let thumbnailURL = thumbnailURL, let thumbnailStorageRef = thumbnailStorageRef {
+                    let uploadTaskThumbnail = thumbnailStorageRef.putFile(from: thumbnailURL, metadata: nil) { metadata, error in
+                        guard metadata != nil else {
+                            print("Failed to upload thumbnail: \(error?.localizedDescription ?? "Unknown error")")
+                            completion(fileDownloadURL, nil)
                             return
                         }
                         
-                        print("[PONG] Thumbnail got downloaded successfully, URL: \(thumbnailDownloadURL)")
-                        
-                        print("[PONG] Both uploads are successful, return the URLs")
-                        completion(videoDownloadURL, thumbnailDownloadURL)
+                        thumbnailStorageRef.downloadURL { thumbnailDownloadURL, error in
+                            guard let thumbnailDownloadURL = thumbnailDownloadURL else {
+                                print("Thumbnail URL not found: \(error?.localizedDescription ?? "Unknown error")")
+                                completion(fileDownloadURL, nil)
+                                return
+                            }
+                            
+                            completion(fileDownloadURL, thumbnailDownloadURL)
+                        }
                     }
+                } else {
+                    // No thumbnail to upload
+                    completion(fileDownloadURL, nil)
                 }
             }
         }
     }
+
     
     func fetchUserProfile() {
         guard let userId = Auth.auth().currentUser?.uid else { return }
@@ -206,7 +202,6 @@ class FirebaseViewModel: ObservableObject {
                         self.userProfileImageURL = profileImageURL
                     }
                 }
-                // Fetch other user data as needed
             } else {
                 print("User does not exist")
             }
@@ -221,10 +216,15 @@ class FirebaseViewModel: ObservableObject {
         }
     }
     
-    func downloadVideoFileForQL(from videoURL: String, completion: @escaping (Result<URL, Error>) -> Void) {
+    func downloadVideoFileForQL(from videoURL: String, fileType: String, completion: @escaping (Result<URL, Error>) -> Void) {
+        guard let url = URL(string: videoURL) else {
+            completion(.failure(URLError(.badURL)))
+            return
+        }
         let storageRef = Storage.storage().reference(forURL: videoURL)
-        let localURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".mov")
-        
+        let fileName = UUID().uuidString + "." + fileType
+        let localURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
+
         // Download to the local file URL
         storageRef.write(toFile: localURL) { url, error in
             if let error = error {
@@ -234,7 +234,6 @@ class FirebaseViewModel: ObservableObject {
             }
         }
     }
-
 
     func signUp(firstName: String, lastName: String, username: String, completion: @escaping (Bool, String) -> Void) {
         // Create a new user account with email and password
