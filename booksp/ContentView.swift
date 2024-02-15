@@ -121,12 +121,7 @@ struct ContentView: View {
         
         @State private var showingSuccessAlert = false
         @State private var successMessage = "Signed In Successfully."
-        @State private var navigationTag: NavigationTag?
-        
-        enum NavigationTag {
-            case signUp
-            case userAllView
-        }
+        @State private var navigateToUserHome = false
         
         var body: some View {
             NavigationStack {
@@ -165,7 +160,7 @@ struct ContentView: View {
                             presenting: successMessage
                         ) { _ in
                             Button("OK") {
-                                navigationTag = .userAllView
+                                navigateToUserHome = true
                             }
                         } message: { successMessage in
                             Text(successMessage)
@@ -173,28 +168,15 @@ struct ContentView: View {
                         
                         Text(firebase.errorMessage)
                         
-                        Text("Create an account?")
-                            .onTapGesture {
-                                navigationTag = .signUp
-                            }
-                    }
-                }
-                .navigationDestination(for: NavigationTag.self) { tag in
-                    switch tag {
-                    case .signUp:
-                        SignUpView()
-                    case .userAllView:
-                        UserAllViewWrapper()
+                        NavigationLink(destination: logInViewToProfile()) {
+                            Text("Create an account?")
+                        }
+                        .buttonStyle(PlainButtonStyle())
                     }
                 }
             }
         }
         
-    }
-    
-    enum LogInDestination {
-        case SignUpView
-        case userHomeView
     }
     
     struct logInViewToPost: View {
@@ -203,11 +185,10 @@ struct ContentView: View {
         
         @State private var showingSuccessAlert = false
         @State private var successMessage = "Signed In Successfully."
-        @State private var navigationPath = NavigationPath()
         @State private var navigateToUserHome = false
         
         var body: some View {
-            NavigationStack(path: $navigationPath) {
+            NavigationStack() {
                 VStack {
                     Text("Authentication")
                     
@@ -250,27 +231,14 @@ struct ContentView: View {
                         
                         Text(firebase.errorMessage)
                         
-                        NavigationLink(value: LogInDestination.SignUpView) {
+                        NavigationLink(destination: SignUpView()) {
                             Text("Create an account?")
                         }
                         .buttonStyle(PlainButtonStyle())
                     }
                 }
-                .navigationDestination(for: LogInDestination.self) { destination in
-                    switch destination {
-                    case .SignUpView:
-                        SignUpView()
-                    case .userHomeView:
-                        logInViewToProfile()
-                    }
-                }
             }
         }
-    }
-    
-    enum SignUpDestination {
-        case logInView
-        case userHomeView
     }
 
     struct SignUpView: View {
@@ -279,45 +247,43 @@ struct ContentView: View {
         @State private var successMessage = "User registration has succeeded!"
         @State private var firstName: String = ""
         @State private var lastName: String = ""
-        @State private var navigationPath = NavigationPath()
         @State private var navigateToUserHome = false
 
         var body: some View {
-            NavigationStack(path: $navigationPath) {
+            NavigationStack() {
                 VStack {
+                    
                     Text("Registration")
                     
-                    TextField("Username", text: $firebase.username)
-                        .padding()
-                        .frame(width: 260.0, height: 100.0)
-                    
-                    // Email
                     TextField("Email", text: $firebase.mail)
                         .keyboardType(.emailAddress)
                         .autocapitalization(.none)
                         .padding()
                         .frame(width: 260.0, height: 100.0)
                     
-                    // Password
                     SecureField("Password", text: $firebase.password)
                         .padding()
                         .frame(width: 260.0, height: 100.0)
                     
-                    // First Name
-                    TextField("First Name", text: $firstName)
-                        .padding()
-                        .frame(width: 260.0, height: 100.0)
-                    
-                    // Last Name
-                    TextField("Last Name", text: $lastName)
-                        .padding()
-                        .frame(width: 260.0, height: 100.0)
+                    HStack {
+
+                        TextField("First Name", text: $firstName)
+                            .padding()
+                            .frame(width: 260.0, height: 100.0)
+                        
+                        TextField("Last Name", text: $lastName)
+                            .padding()
+                            .frame(width: 260.0, height: 100.0)
+                        
+                        TextField("Username", text: $firebase.username)
+                            .padding()
+                            .frame(width: 260.0, height: 100.0)
+                    }
                     
                 }
                 
                 VStack {
                     Button(action: {
-                        // Update the sign-up process to include first & last name, and image
                         firebase.signUp(firstName: firstName, lastName: lastName, username: firebase.username) { success, message in
                             if success {
                                 successMessage = message
@@ -344,20 +310,10 @@ struct ContentView: View {
 
                     Text(firebase.errorMessage)
 
-                    // Navigate to LogInViewWrapper
-                    NavigationLink(value: SignUpDestination.logInView) {
-                        Text("Already have an account?")
+                    NavigationLink(destination: logInViewToProfile()) {
+                        Text("Already have our Tee account?")
                     }
                     .buttonStyle(PlainButtonStyle())
-                }
-            }
-            // Define how to handle navigation to LogInViewWrapper
-            .navigationDestination(for: SignUpDestination.self) { destination in
-                switch destination {
-                case .logInView:
-                    logInViewToProfile()
-                case .userHomeView:
-                    UserAllViewWrapper()
                 }
             }
         }
@@ -372,12 +328,19 @@ struct DetailView: View {
     let localFileURL: URL
 
     var body: some View {
-        VStack {
-            if let post = firebaseViewModel.postsWithMetadata.first(where: { $0.id == postID }) {
-                USDZQLPreview(url: localFileURL)
-                Text(post.caption)
-            } else {
-                Text("Post details not found.")
+        ScrollView(.vertical, showsIndicators: false) {
+            VStack {
+                if let post = firebaseViewModel.postsWithMetadata.first(where: { $0.id == postID }) {
+                    
+                    USDZQLPreview(url: localFileURL)
+                    
+                    Text(post.caption)
+                    
+                } else {
+                    
+                    Text("Post details not found.")
+                    
+                }
             }
         }
     }
@@ -402,19 +365,18 @@ struct homeView: View {
                         .font(.system(size: 25))
                     Spacer()
                 }
-                .padding(.leading, 10)
+                .padding(.leading, 15)
                 .padding(.top, 40)
                 
                 VStack {
                     HStack {
-                        Text("Spatial Videos")
+                        Text("Spatial Creators")
                             .font(.headline)
                             .padding(.leading)
                         Spacer()
                     }
-                    .padding([.top, .leading], 10)
-                    
-                    Spacer()
+                    .padding(.top, 20)
+                    .padding(.leading, 10)
                     
                     ScrollView(.horizontal, showsIndicators: false) {
                         let rows = [GridItem(.flexible(minimum: 10, maximum: .infinity), spacing: 20)]
@@ -451,13 +413,12 @@ struct homeView: View {
                                             }
                                             
                                             Text(postWithMeta.username)
+                                                .bold()
                                                 .padding(.leading, 5)
-                                                .onAppear{
-                                                    print("userProfileImageURL: \(firebaseViewModel.userProfileImageURL)")
-                                                }
+                                    
                                             Spacer()
                                         }
-                                        .padding(.bottom, 20)
+                                        .padding(.bottom, 25)
                                         
                                         switch postWithMeta.fileType {
                                         case "mov":
@@ -472,16 +433,21 @@ struct homeView: View {
                                                             .transition(.opacity)
                                                             .clipShape(RoundedRectangle(cornerRadius: 10))
                                                     case .failure(_), .empty:
-                                                        Color.red
+                                                        EmptyView()
                                                     @unknown default:
                                                         EmptyView()
                                                     }
                                                 }
+                                                .padding(.top, 20)
+                                                .padding(.bottom, 30)
                                             } else {
                                                 Text("No thumbnail available")
                                                     .frame(width: 600, height: 247.22)
                                                     .background(Color.gray.opacity(0.5))
                                                     .clipShape(RoundedRectangle(cornerRadius: 10))
+                                                    .shadow(radius: 10)
+                                                    .padding(.top, 30)
+                                                    .padding(.bottom, 30)
                                             }
                                         case "usdz", "reality":
                                             Model3D(url: URL(string: postWithMeta.videoURL)!) { model in
@@ -491,7 +457,10 @@ struct homeView: View {
                                             } placeholder: {
                                                 ProgressView()
                                             }
-                                            .frame(width: 600, height: 247.22)
+                                            .frame(width: 540, height: 187.22)
+                                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                                            .padding(.top, 55)
+                                            .padding(.bottom, 55)
                                         default:
                                             Text("Unsupported or no preview available")
                                                 .frame(width: 600, height: 247.22)
@@ -501,8 +470,12 @@ struct homeView: View {
                                         
                                         if !postWithMeta.caption.isEmpty {
                                             Text(postWithMeta.caption)
+                                                .lineLimit(3)
+                                                .truncationMode(.tail)
+                                                .frame(maxWidth: 500, alignment: .leading)
                                                 .padding(.top, 20)
                                         }
+
                                     }
                                 }
                                 .frame(width: 600, height: 800)
@@ -523,7 +496,7 @@ struct homeView: View {
                         }
                         .padding(.top, 10)
                         .padding(.bottom, 10)
-                        .frame(width: geometry.size.width, height: geometry.size.height / 1.5)
+                        .frame(height: geometry.size.height / 1.5)
                         
                     }
                     .frame(width: geometry.size.width, height: geometry.size.height / 3 * 2 + 100)
@@ -535,7 +508,8 @@ struct homeView: View {
                     .onReceive(timer) { _ in
                         firebaseViewModel.fetchPostsWithMetadata()
                     }
-                    .padding()
+                    .padding(.leading, 30)
+                    .padding(.top, -30)
                 }
                 Spacer()
             }
@@ -895,6 +869,7 @@ struct Add3DModelView: View {
     @State private var savedModelURL: URL?
     @State private var savedThumbnailURL: URL?
     @State private var captionText: String = ""
+    @State private var isEditing: Bool = false
     @State private var showAlert = false
     @State private var alertTitle = ""
     @State private var alertMessage = ""
@@ -1040,6 +1015,7 @@ struct Add3DModelView: View {
     }
 
     struct CubePreviewView: View {
+        
         @Binding var savedModelURL: URL?
         @Binding var savedThumbnailURL: URL?
         @Binding var isPreviewing: Bool
@@ -1048,56 +1024,46 @@ struct Add3DModelView: View {
         
         var body: some View {
             VStack {
+                
                 if let url = savedModelURL {
+                    
                     NavigationView {
+                        
                         VStack {
                             
                             HStack {
-                                Spacer()
+                                
                                 Button(action: { isPreviewing = false }) {
                                     Label("", systemImage: "xmark")
+                                        .padding(.leading, 5)
                                 }
+                                .clipShape(Circle())
+                                .offset(x: 15, y: 20)
+
+                                Spacer()
                             }
                             
-                            if url.pathExtension.lowercased() == "usdz" || url.pathExtension.lowercased() == "reality" {
-                                
-                                USDZQLPreview(url: url)
-                                    .padding()
-                                
-                            } else if url.pathExtension.lowercased() == "mov", let thumbnail = savedThumbnailURL {
-                                AsyncImage(url: thumbnail) { image in
-                                    image
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fit)
-                                        .frame(width: 200, height: 200)
-                                } placeholder: {
-                                    ProgressView()
-                                }
-                            } else {
-                                Text("Unsupported file type or no preview available")
-                            }
+                            USDZQLPreview(url: url)
+                                .padding()
+                                .frame(width: 700, height: 437.5)
                             
                             HStack {
                                 
-                                Button("Cancel") {
-                                    isPreviewing = false
-                                }
-                                .padding()
-                                .foregroundColor(.white)
-                                .cornerRadius(8)
+                                Spacer()
                                 
                                 Button("Confirm") {
                                     confirmedModelURL = savedModelURL
                                     confirmedThumbnailURL = savedThumbnailURL
                                     isPreviewing = false
                                 }
-                                .padding()
-                                .foregroundColor(.white)
+                                .padding(.trailing, 30)
+                                .padding(.bottom, 30)
                                 .cornerRadius(8)
                                 
                             }
                         }
                     }
+                    .frame(width: 900, height: 562.5)
                 } else {
                     Text("Hello, no spatial contents available.")
                 }
@@ -1106,176 +1072,204 @@ struct Add3DModelView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            if let modelURL = confirmedModelURL {
-                VStack {
-                    if modelURL.pathExtension.lowercased() == "mov", let thumbnail = confirmedThumbnailURL {
-                        AsyncImage(url: thumbnail) { image in
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 300, height: 300)
-                        } placeholder: {
-                            ProgressView()
+        ScrollView(.vertical) {
+            NavigationStack {
+                if let modelURL = confirmedModelURL {
+                    VStack {
+                        if modelURL.pathExtension.lowercased() == "mov", let thumbnail = confirmedThumbnailURL {
+                            AsyncImage(url: thumbnail) { image in
+                                image
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(width: 800, height: 500)
+                                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                            } placeholder: {
+                                ProgressView()
+                            }
+                        } else {
+                            
+                            USDZQLPreview(url:modelURL)
+                                .frame(width: 800, height: 500)
+                        
                         }
-                    } else {
                         
-                        USDZQLPreview(url:modelURL)
-                        
-                    }
-                    
-                    /*
-                    
-                    Button("Re-select") {
-                        isPickerPresented = true
-                    }
-                    .padding()
-                     
-                    */
-                    
-                    TextField("Write a caption...", text: $captionText)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        Button(action: {
+                            confirmedModelURL = nil
+                        }) {
+                            Text("Dismiss selection")
+                                .padding()
+                                .cornerRadius(10)
+                        }
                         .padding()
-                    
-                    HStack {
+                        
+                        ZStack(alignment: .topLeading) {
+                            if captionText.isEmpty && !isEditing {
+                                Text("Caption...")
+                                    .foregroundColor(.gray)
+                                    .padding(.leading, 5)
+                                    .padding(.top, 8)
+                            }
+                            TextEditor(text: $captionText)
+                                .padding(4)
+                                .onTapGesture {
+                                    isEditing = true
+                                }
+                        }
+                        .frame(width: 800, height: 100)
+                        .border(Color(UIColor.separator), width: 1)
+                        .cornerRadius(8)
+                        .padding()
+                        .onAppear {
+                            UITextView.appearance().backgroundColor = .clear
+                        }
+                        
                         Spacer()
-                        Button("Post →") {
-                            print("[PONG] Post button got clicked.")
-                            if let confirmedMainURL = confirmedModelURL {
-                                let fileType = confirmedMainURL.pathExtension.lowercased()
-                                let thumbnailURL = (fileType == "mov") ? confirmedThumbnailURL : nil
-                                
-                                print("[PONG] confirmedMainURL is passed.")
-                                firebase.uploadFileAndThumbnail(fileURL: confirmedMainURL, thumbnailURL: thumbnailURL, fileType: fileType) { fileDownloadURL, thumbnailDownloadURL in
+                        
+                        HStack {
+                            Spacer()
+                            Button("Post →") {
+                                print("[PONG] Post button got clicked.")
+                                if let confirmedMainURL = confirmedModelURL {
+                                    let fileType = confirmedMainURL.pathExtension.lowercased()
+                                    let thumbnailURL = (fileType == "mov") ? confirmedThumbnailURL : nil
                                     
-                                    guard let fileDownloadURL = fileDownloadURL else {
-                                        DispatchQueue.main.async {
-                                            alertMessage = "Failed to upload the file."
-                                            showAlert = true
+                                    print("[PONG] confirmedMainURL is passed.")
+                                    firebase.uploadFileAndThumbnail(fileURL: confirmedMainURL, thumbnailURL: thumbnailURL, fileType: fileType) { fileDownloadURL, thumbnailDownloadURL in
+                                        
+                                        guard let fileDownloadURL = fileDownloadURL else {
+                                            DispatchQueue.main.async {
+                                                alertMessage = "Failed to upload the file."
+                                                showAlert = true
+                                            }
+                                            return
                                         }
-                                        return
-                                    }
-                                    
-                                    guard let userID = Auth.auth().currentUser?.uid else {
-                                        DispatchQueue.main.async {
-                                            alertMessage = "You need to be logged in to post."
-                                            showAlert = true
+                                        
+                                        guard let userID = Auth.auth().currentUser?.uid else {
+                                            DispatchQueue.main.async {
+                                                alertMessage = "You need to be logged in to post."
+                                                showAlert = true
+                                            }
+                                            return
                                         }
-                                        return
+                                        
+                                        let thumbnailURLString = thumbnailDownloadURL?.absoluteString ?? ""
+                                        
+                                        print("[PONG] About to run createPost function.")
+                                        print("[PONG] caption is: \(captionText)")
+                                        
+                                        firebase.createPost(forUserID: userID, videoURL: fileDownloadURL.absoluteString, thumbnailURL: thumbnailURLString, caption: captionText, fileType: fileType)
+                                        
+                                        DispatchQueue.main.async {
+                                            isPostingSuccessful = true
+                                            print("[PONG] Post success!")
+                                        }
                                     }
-                                    
-                                    let thumbnailURLString = thumbnailDownloadURL?.absoluteString ?? ""
-
-                                    print("[PONG] About to run createPost function.")
-                                    print("[PONG] caption is: \(captionText)")
-                                    
-                                    firebase.createPost(forUserID: userID, videoURL: fileDownloadURL.absoluteString, thumbnailURL: thumbnailURLString, caption: captionText, fileType: fileType)
-                                    
-                                    // Indicate that posting was successful
+                                } else {
                                     DispatchQueue.main.async {
-                                        isPostingSuccessful = true
-                                        print("[PONG] Post success!")
+                                        alertMessage = "Please confirm the file before posting."
+                                        showAlert = true
                                     }
-                                }
-                            } else {
-                                DispatchQueue.main.async {
-                                    alertMessage = "Please confirm the file before posting."
-                                    showAlert = true
                                 }
                             }
+                            .padding()
                         }
-
-                    }
-                    .padding()
-                }
-                
-            } else {
-                
-                VStack {
-                    Text("No model selected")
                         .padding()
-                    Button("Choose A Spatial File") {
-                        isPickerPresented = true
-                    }
-                    .fileImporter(
-                        isPresented: $isPickerPresented,
-                        allowedContentTypes: allowedContentTypes,
-                        allowsMultipleSelection: false
-                    ) { result in
-                        switch result {
-                        case .success(let urls):
-                            isLoadingModel = true
-                            selectedModelURL = urls.first
-                            handleCubeSelection(urls: urls)
-                        case .failure(let error):
-                            alertMessage = "Error selecting file: \(error.localizedDescription)"
-                            showAlert = true
-                        }
                     }
                     
-                    .alert(
-                        Text("The file already exists."),
-                        isPresented: $alertViewModel.showOverwriteAlert
-                    ) {
-                        Button(role: .destructive) {
-                            if let selectedModelURL = selectedModelURL {
-                                handleCubeSelection(urls: [selectedModelURL], shouldOverwrite: true)
-                            }
-                        } label: {
-                            Text("Overwrite")
+                } else {
+                    
+                    VStack {
+                        Text("No model selected")
+                            .padding()
+                        Button("Choose A Spatial File") {
+                            isPickerPresented = true
                         }
-                        Button("Cancel", role: .cancel) {}
-                    }
-
-                    /* THIS DO NOT WORK!
-                    .alert(isPresented: $alertViewModel.showOverwriteAlert) {
-                        Alert(
-                            title: Text("The file already exists."),
-                            primaryButton: .destructive(Text("Overwrite")) {
+                        .fileImporter(
+                            isPresented: $isPickerPresented,
+                            allowedContentTypes: allowedContentTypes,
+                            allowsMultipleSelection: false
+                        ) { result in
+                            switch result {
+                            case .success(let urls):
+                                isLoadingModel = true
+                                selectedModelURL = urls.first
+                                handleCubeSelection(urls: urls)
+                            case .failure(let error):
+                                alertMessage = "Error selecting file: \(error.localizedDescription)"
+                                showAlert = true
+                            }
+                        }
+                        
+                        .alert(
+                            Text("The file already exists."),
+                            isPresented: $alertViewModel.showOverwriteAlert
+                        ) {
+                            Button(role: .destructive) {
                                 if let selectedModelURL = selectedModelURL {
-                                    handleModelSelection(urls: [selectedModelURL], shouldOverwrite: true)
+                                    handleCubeSelection(urls: [selectedModelURL], shouldOverwrite: true)
                                 }
-                            }, secondaryButton: .cancel(Text("Cancel"))
-                        )
-                    }
-                    */
-
-                    .sheet(isPresented: $isPreviewing) {
-                        CubePreviewView(
+                            } label: {
+                                Text("Overwrite")
+                            }
+                            Button("Cancel", role: .cancel) {}
+                        }
+                        
+                        .sheet(isPresented: $isPreviewing) {
+                            CubePreviewView(
                                 savedModelURL: $savedModelURL,
                                 savedThumbnailURL: $savedThumbnailURL,
                                 isPreviewing: $isPreviewing,
                                 confirmedModelURL: $confirmedModelURL,
                                 confirmedThumbnailURL: $confirmedThumbnailURL
-                        )
-                    }
-                    
-                    TextField("Write a caption...", text: $captionText)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                            )
+                        }
+                        
+                        ZStack(alignment: .topLeading) {
+                            if captionText.isEmpty && !isEditing {
+                                Text("Caption...")
+                                    .foregroundColor(.gray)
+                                    .padding(.leading, 5)
+                                    .padding(.top, 8)
+                            }
+                            TextEditor(text: $captionText)
+                                .padding(4)
+                                .onTapGesture {
+                                    isEditing = true
+                                }
+                        }
+                        .frame(width: 800, height: 100)
+                        .border(Color(UIColor.separator), width: 1)
+                        .cornerRadius(8)
                         .padding()
-                    
-                    HStack {
+                        .onAppear {
+                            UITextView.appearance().backgroundColor = .clear
+                        }
+                        
                         Spacer()
-                        Button("Post →") {}
-                            .disabled(true)
-                            .padding()
+                        
+                        HStack {
+                            Spacer()
+                            Button("Post →") {}
+                                .disabled(true)
+                                .padding()
+                        }
                     }
+                    .padding()
                 }
-                .padding()
             }
         }
         .alert(isPresented: $isPostingSuccessful) {
             Alert(
+                
                 title: Text("Posting was successful!"),
-                primaryButton: .destructive(Text("Head feed")) {
-                    // Set the state to trigger navigation to HomeView
-                    navigateToHome = true
-                },
-                secondaryButton: .cancel(Text("Continue posting"))
+                
+                dismissButton: .default(Text("OK")) {
+                    
+                    confirmedModelURL = nil
+                    
+                    captionText = ""
+                }
             )
-        }
-        .navigationDestination(isPresented: $navigateToHome) {
-            homeView()
         }
         .navigationTitle("Post")
     }
