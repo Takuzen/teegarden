@@ -875,6 +875,8 @@ struct Add3DModelView: View {
     @State private var alertMessage = ""
     @State private var isLoadingModel = false
     @State private var isPreviewing = false
+    @State private var isPostBtnClicked = false
+    @State private var isUploading = false
     @State private var isPostingSuccessful: Bool = false
     @State private var navigateToHome = false
     @State private var shouldOverwriteFile = false
@@ -1128,6 +1130,8 @@ struct Add3DModelView: View {
                         HStack {
                             Spacer()
                             Button("Post →") {
+                                isPostBtnClicked = true
+                                isUploading = true
                                 print("[PONG] Post button got clicked.")
                                 if let confirmedMainURL = confirmedModelURL {
                                     let fileType = confirmedMainURL.pathExtension.lowercased()
@@ -1160,8 +1164,14 @@ struct Add3DModelView: View {
                                         firebase.createPost(forUserID: userID, videoURL: fileDownloadURL.absoluteString, thumbnailURL: thumbnailURLString, caption: captionText, fileType: fileType)
                                         
                                         DispatchQueue.main.async {
-                                            isPostingSuccessful = true
-                                            print("[PONG] Post success!")
+                                            
+                                            isUploading = false
+                                            
+                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                                self.isPostingSuccessful = true
+                                                print("[PONG] Post success!")
+                                            }
+                                            
                                         }
                                     }
                                 } else {
@@ -1172,6 +1182,22 @@ struct Add3DModelView: View {
                                 }
                             }
                             .padding()
+                            .sheet(isPresented: $isUploading) {
+                                // This is the sheet that will show the uploading progress
+                                VStack {
+                                    Text("Uploading...")
+                                        .font(.title)
+                                        .padding()
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle())
+                                        .scaleEffect(1.5)
+                                        .padding()
+                                }
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .background(Color(.systemBackground).opacity(0.9))
+                                .edgesIgnoringSafeArea(.all)
+                                .padding(30)
+                            }
                         }
                         .padding()
                     }
