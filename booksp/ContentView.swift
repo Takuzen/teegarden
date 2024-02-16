@@ -828,7 +828,6 @@ func saveModelToTemporaryFolder(modelURL: URL, thumbnailURL: URL?, overwrite: Bo
     return .success((model: modelDestinationURL, thumbnail: tmpThumbnailURL))
 }
 
-
 func loadModelsFromTemporaryFolder() -> [URL] {
     // Get the documents directory URL
     let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
@@ -890,6 +889,22 @@ struct Add3DModelView: View {
     
     let allowedContentTypes: [UTType] = [.usdz, .reality, .movie]
     
+    func clearTemporaryModelFilesFolder() {
+        let fileManager = FileManager.default
+        let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let tmpModelFilesDirectory = documentsDirectory.appendingPathComponent("TmpModelFiles")
+        
+        // Check if the directory exists before trying to delete it
+        if fileManager.fileExists(atPath: tmpModelFilesDirectory.path) {
+            do {
+                try fileManager.removeItem(at: tmpModelFilesDirectory)
+                print("Cleared TmpModelFiles folder.")
+            } catch {
+                print("Could not clear TmpModelFiles folder: \(error)")
+            }
+        }
+    }
+    
     func handleCubeSelection(urls: [URL], shouldOverwrite: Bool = false) {
         print("handleModelSelection called with URLs: \(urls)")
         guard let firstModelURL = urls.first else {
@@ -934,7 +949,6 @@ struct Add3DModelView: View {
             }
         }
     }
-
 
     func processModel(thumbnailURL: URL?, originalURL: URL, shouldOverwrite: Bool) {
         Task {
@@ -1169,6 +1183,7 @@ struct Add3DModelView: View {
                                             
                                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                                                 self.isPostingSuccessful = true
+                                                self.clearTemporaryModelFilesFolder()
                                                 print("[PONG] Post success!")
                                             }
                                             
