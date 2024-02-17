@@ -22,6 +22,8 @@ import Foundation
 
 class FirebaseViewModel: ObservableObject {
     @Published var userProfileImageURL: URL?
+    @Published var userPosts: [Post] = []
+    @Published var introductionText: String = "Write something about yourself..."
     
     static let shared: FirebaseViewModel = .init()
     
@@ -38,7 +40,83 @@ class FirebaseViewModel: ObservableObject {
     @Published var fileURLs: [URL] = []
     
     @Published var postsWithMetadata: [PostWithMetadata] = []
+    
+    class UserPublicViewModel: ObservableObject {
+        @Published var userPosts: [Post] = []
+        @Published var introductionText: String = ""
 
+        func fetchUserPosts(userID: String) {
+            let db = Firestore.firestore()
+            let postsRef = db.collection("users").document(userID).collection("posts")
+
+            postsRef.getDocuments { (querySnapshot, error) in
+                if let error = error {
+                    print("Error getting posts: \(error.localizedDescription)")
+                    return
+                }
+
+                var tempPosts: [Post] = []
+                for document in querySnapshot!.documents {
+                    let postDict = document.data()
+                    if let thumbnailURLString = postDict["thumbnailURL"] as? String,
+                       let thumbnailURL = URL(string: thumbnailURLString),
+                       let videoURLString = postDict["videoURL"] as? String,
+                       let caption = postDict["caption"] as? String,
+                       let fileType = postDict["fileType"] as? String {
+                        let post = Post(id: document.documentID, creatorUserID: userID, videoURL: videoURLString, thumbnailURL: thumbnailURL, caption: caption, creationDate: nil, fileType: fileType)
+                        tempPosts.append(post)
+                    }
+                }
+                DispatchQueue.main.async {
+                    self.userPosts = tempPosts
+                }
+            }
+        }
+
+        func fetchIntroductionText(userID: String) {
+            let db = Firestore.firestore()
+            db.collection("users").document(userID).getDocument { (document, error) in
+                if let document = document, document.exists {
+                    let data = document.data()
+                    if let introduction = data?["introduction"] as? String {
+                        DispatchQueue.main.async {
+                            self.introductionText = introduction
+                        }
+                    }
+                } else {
+                    print("User document does not exist")
+                }
+            }
+        }
+    }
+
+    
+    func fetchIntroductionText(userID: String) {
+        let db = Firestore.firestore()
+        db.collection("users").document(userID).getDocument { (document, error) in
+            if let document = document, document.exists {
+                let data = document.data()
+                if let introduction = data?["introduction"] as? String {
+                    DispatchQueue.main.async {
+                        self.introductionText = introduction
+                    }
+                }
+            } else {
+                print("User document does not exist")
+            }
+        }
+    }
+        
+    func updateIntroductionText(userID: String, introduction: String) {
+        let db = Firestore.firestore()
+        db.collection("users").document(userID).updateData(["introduction": introduction]) { error in
+            if let error = error {
+                print("Error updating introduction: \(error.localizedDescription)")
+            } else {
+                print("Introduction updated successfully")
+            }
+        }
+    }
     
     struct PostWithMetadata {
         var id: String
@@ -47,6 +125,7 @@ class FirebaseViewModel: ObservableObject {
         var username: String
         var videoURL: String
         var fileType: String
+        var userID: String
     }
 
     func fetchPostsWithMetadata() {
@@ -67,16 +146,14 @@ class FirebaseViewModel: ObservableObject {
                     
                     print("Fetching user data for userID: \(userID)")
 
-                    // Fetch the username using userID
                     self.db.collection("users").document(userID).getDocument { (userDoc, userErr) in
                         if let userErr = userErr {
                             print("Error fetching user: \(userErr)")
                         } else if let userDoc = userDoc, userDoc.exists {
                             let userData = userDoc.data()
                             let username = userData?["username"] as? String ?? "Unknown"
-                            
-                            // Create a PostWithMetadata object with fileType and append it to tempPosts
-                            let postWithMeta = PostWithMetadata(id: postID, caption: caption, thumbnailURL: thumbnailURL, username: username, videoURL: videoURL, fileType: fileType)
+                            let userID = data["userID"] as? String ?? ""
+                            let postWithMeta = PostWithMetadata(id: postID, caption: caption, thumbnailURL: thumbnailURL, username: username, videoURL: videoURL, fileType: fileType, userID: userID)
                             tempPosts.append(postWithMeta)
                             
                             // Update the published variable
@@ -202,6 +279,11 @@ class FirebaseViewModel: ObservableObject {
                         self.userProfileImageURL = profileImageURL
                     }
                 }
+                if let username = data?["username"] as? String {
+                    DispatchQueue.main.async {
+                        self.username = username
+                    }
+                }
             } else {
                 print("User does not exist")
             }
@@ -216,11 +298,85 @@ class FirebaseViewModel: ObservableObject {
         }
     }
     
+    func fetchUserPosts(userID: String) {
+        let db = Firestore.firestore()
+        let postsRef = db.collection("users").document(userID).collection("posts")
+        
+        postsRef.getDocuments { (querySnapshot, error) in
+            if let error = error {
+                print("Error getting posts: \(error.localizedDescription)")
+                return
+            }
+            
+            var tempPosts: [Post] = []
+            for document in querySnapshot!.documents {
+                let postDict = document.data()
+                if let thumbnailURLString = postDict["thumbnailURL"] as? String,
+                   let thumbnailURL = URL(string: thumbnailURLString),
+                   let videoURLString = postDict["videoURL"] as? String,
+                   let caption = postDict["caption"] as? String,
+                   let fileType = postDict["fileType"] as? String {
+                    let post = Post(id: document.documentID, creatorUserID: userID, videoURL: videoURLString, thumbnailURL: thumbnailURL, caption: caption, creationDate: nil, fileType: fileType)
+                    tempPosts.append(post)
+                }
+            }
+            DispatchQueue.main.async {
+                self.userPosts = tempPosts
+            }
+        }
+    }
+
+    func checkAndCleanStorage(at directoryURL: URL) {
+        let fileManager = FileManager.default
+
+        do {
+            let contents = try fileManager.contentsOfDirectory(at: directoryURL, includingPropertiesForKeys: [.creationDateKey], options: .skipsHiddenFiles)
+            var totalSize = try contents.reduce(UInt64(0)) { total, fileURL in
+                let attributes = try fileManager.attributesOfItem(atPath: fileURL.path)
+                let fileSize = attributes[.size] as? UInt64 ?? 0
+                return total + fileSize
+            }
+
+            // If the total size exceeds the limit, delete files until it's under the limit
+            if totalSize > maxLocalStorageSize {
+                let sortedFiles = contents.sorted { lhs, rhs in
+                    let lhsDate: Date
+                    let rhsDate: Date
+                    do {
+                        lhsDate = try lhs.resourceValues(forKeys: [.creationDateKey]).creationDate ?? Date.distantPast
+                        rhsDate = try rhs.resourceValues(forKeys: [.creationDateKey]).creationDate ?? Date.distantPast
+                    } catch {
+                        print("Error sorting files: \(error)")
+                        return false
+                    }
+                    return lhsDate < rhsDate
+                }
+
+
+                for fileURL in sortedFiles {
+                    try fileManager.removeItem(at: fileURL)
+                    totalSize -= (try fileManager.attributesOfItem(atPath: fileURL.path)[.size] as? UInt64 ?? 0)
+
+                    if totalSize <= maxLocalStorageSize {
+                        break
+                    }
+                }
+            }
+        } catch {
+            print("Error checking and cleaning storage: \(error)")
+        }
+    }
+
+    
     func downloadVideoFileForQL(from videoURL: String, fileType: String, completion: @escaping (Result<URL, Error>) -> Void) {
         guard let url = URL(string: videoURL) else {
             completion(.failure(URLError(.badURL)))
             return
         }
+
+        // Check and clean storage before starting the download
+        checkAndCleanStorage(at: FileManager.default.temporaryDirectory)
+
         let storageRef = Storage.storage().reference(forURL: videoURL)
         let fileName = UUID().uuidString + "." + fileType
         let localURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
@@ -234,6 +390,7 @@ class FirebaseViewModel: ObservableObject {
             }
         }
     }
+
 
     func signUp(firstName: String, lastName: String, username: String, completion: @escaping (Bool, String) -> Void) {
         // Create a new user account with email and password
@@ -354,9 +511,13 @@ class FirebaseViewModel: ObservableObject {
     func signOut() {
         do {
             try Auth.auth().signOut()
-            self.isLoggedIn = self.isUserLoggedIn()
+            DispatchQueue.main.async {
+                self.isLoggedIn = false
+            }
         } catch let signOutError as NSError {
-            self.errorMessage = "Error signing out: \(signOutError.localizedDescription)"
+            DispatchQueue.main.async {
+                self.errorMessage = "Error signing out: \(signOutError.localizedDescription)"
+            }
         }
     }
 

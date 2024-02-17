@@ -58,6 +58,7 @@ struct ContentView: View {
                             .environmentObject(firebase)
                     } else if tab == .profile && firebase.isLoggedIn {
                         UserAllViewWrapper()
+                            .environmentObject(FirebaseViewModel.shared)
                     } else if tab == .post && !firebase.isLoggedIn {
                         SignUpView()
                             .environmentObject(firebase)
@@ -86,9 +87,15 @@ struct ContentView: View {
     }
 
     struct UserAllViewWrapper: View {
+        @StateObject var firebase = FirebaseViewModel()
+
         var body: some View {
             NavigationStack {
-                userAllView()
+                userViewAuth(username: firebase.username)
+            }
+            .onAppear {
+                // Fetch the authenticated user's username if needed
+                firebase.fetchUserProfile()
             }
         }
     }
@@ -215,7 +222,7 @@ struct ContentView: View {
                                     firebase.errorMessage = message                                }
                             }
                         }) {
-                            Text("Authenticate →")
+                            Text("Sign in →")
                         }
                         .alert(
                             "Success",
@@ -322,26 +329,59 @@ struct ContentView: View {
 
 // MARK: - ContentView END
 
-struct DetailView: View {
+struct DetailViewForUserFeed: View {
+    let post: Post
+    @ObservedObject var firebaseViewModel: FirebaseViewModel
+
+    var body: some View {
+        
+        VStack {
+            
+            // profile thumbnail and username
+            
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack {
+                    USDZQLPreview(url: post.thumbnailURL)
+                        .frame(width: 800, height: 500)
+                    
+                    if let caption = post.caption {
+                        Text(caption)
+                            .frame(minWidth: 0, maxWidth: 800)
+                    }
+                }
+            }
+            
+        }
+    }
+}
+
+struct DetailViewForHomeFeed: View {
     let postID: String
     @ObservedObject var firebaseViewModel: FirebaseViewModel
     let localFileURL: URL
 
     var body: some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            VStack {
-                if let post = firebaseViewModel.postsWithMetadata.first(where: { $0.id == postID }) {
-                    
-                    USDZQLPreview(url: localFileURL)
-                    
-                    Text(post.caption)
-                    
-                } else {
-                    
-                    Text("Post details not found.")
-                    
+        
+        VStack {
+            
+            // profile thumbnail and username
+            
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack {
+                    if let post = firebaseViewModel.postsWithMetadata.first(where: { $0.id == postID }) {
+                        
+                        USDZQLPreview(url: localFileURL)
+                            .frame(width: 800, height: 500)
+                        
+                        Text(post.caption)
+                            .frame(minWidth: 0, maxWidth: 800)
+                            .padding(.top, 20)
+                    } else {
+                        Text("Post details not found.")
+                    }
                 }
             }
+            
         }
     }
 }
@@ -383,22 +423,22 @@ struct homeView: View {
                         
                         LazyHGrid(rows: rows, spacing: 20) {
                             ForEach(firebaseViewModel.postsWithMetadata, id: \.id) { postWithMeta in
-                                NavigationLink(destination: DetailView(postID: postWithMeta.id, firebaseViewModel: firebaseViewModel, localFileURL: localFileURLs[postWithMeta.id] ?? URL(fileURLWithPath: ""))) {
-                                    VStack {
+                                NavigationLink(destination: DetailViewForHomeFeed(postID: postWithMeta.id, firebaseViewModel: firebaseViewModel, localFileURL: localFileURLs[postWithMeta.id] ?? URL(fileURLWithPath: ""))) {                                    VStack {
+                                    NavigationLink(destination: userViewPublic(userID: postWithMeta.userID, username: postWithMeta.username)) {
                                         HStack {
                                             if let profileImageURL = firebaseViewModel.userProfileImageURL {
                                                 AsyncImage(url: profileImageURL) { phase in
                                                     switch phase {
                                                     case .success(let image):
                                                         image.resizable()
-                                                             .aspectRatio(contentMode: .fill)
-                                                             .frame(width: 40, height: 40)
-                                                             .clipShape(Circle())
+                                                            .aspectRatio(contentMode: .fill)
+                                                            .frame(width: 40, height: 40)
+                                                            .clipShape(Circle())
                                                     case .failure(_):
                                                         Image(systemName: "person.crop.circle.fill")
-                                                             .resizable()
-                                                             .frame(width: 30, height: 30)
-                                                             .clipShape(Circle())
+                                                            .resizable()
+                                                            .frame(width: 30, height: 30)
+                                                            .clipShape(Circle())
                                                     case .empty:
                                                         ProgressView()
                                                     @unknown default:
@@ -407,18 +447,20 @@ struct homeView: View {
                                                 }
                                             } else {
                                                 Image(systemName: "person.crop.circle.fill")
-                                                     .resizable()
-                                                     .frame(width: 30, height: 30)
-                                                     .clipShape(Circle())
+                                                    .resizable()
+                                                    .frame(width: 30, height: 30)
+                                                    .clipShape(Circle())
                                             }
                                             
                                             Text(postWithMeta.username)
                                                 .bold()
                                                 .padding(.leading, 5)
-                                    
+                                            
                                             Spacer()
                                         }
                                         .padding(.bottom, 25)
+                                    }
+                                    .buttonStyle(PlainButtonStyle())
                                         
                                         switch postWithMeta.fileType {
                                         case "mov":
@@ -517,7 +559,6 @@ struct homeView: View {
     }
 }
 
-    
 struct ImagePicker: UIViewControllerRepresentable {
     @Binding var selectedImage: UIImage?
     @Environment(\.presentationMode) private var presentationMode
@@ -555,111 +596,183 @@ struct ImagePicker: UIViewControllerRepresentable {
     }
 }
 
-/*
-struct userObjectiveView: View {
-    
-}
- */
-
-struct userAllView: View {
+struct userViewAuth: View {
     @EnvironmentObject var firebase: FirebaseViewModel
     @State private var showingImagePicker = false
     @State private var inputImage: UIImage?
     @State private var posts: [Post] = []
-
+    @State private var isEditingIntroduction: Bool = false
+    
+    var username: String
 
     var body: some View {
-        NavigationStack {
-            VStack {
-                if let profileImageURL = firebase.userProfileImageURL {
-                    AsyncImage(url: profileImageURL) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image.resizable()
-                                 .aspectRatio(contentMode: .fill)
-                                 .frame(width: 40, height: 40)
-                                 .clipShape(Circle())
-                        case .failure(_):
-                            Image(systemName: "person.crop.circle.fill")
-                                 .resizable()
-                                 .frame(width: 30, height: 30)
-                                 .clipShape(Circle())
-                        case .empty:
-                            ProgressView()
-                        @unknown default:
-                            EmptyView()
-                        }
-                    }
-                } else {
+        
+        GeometryReader { geometry in
+            
+            NavigationStack {
+                
+                ScrollView(.vertical, showsIndicators: true) {
+                    
                     VStack {
-                        Image(systemName: "person.circle")
-                            .resizable()
-                            .frame(width: 30, height: 30)
-                            .clipShape(Circle())
-                        Button("Upload Profile Image") {
-                            showingImagePicker = true
+                        
+                        Spacer()
+                        
+                        HStack {
+                            
+                            VStack {
+                                
+                                if let profileImageURL = firebase.userProfileImageURL {
+                                    AsyncImage(url: profileImageURL) { phase in
+                                        switch phase {
+                                        case .success(let image):
+                                            image.resizable()
+                                                .aspectRatio(contentMode: .fill)
+                                                .frame(width: 40, height: 40)
+                                                .clipShape(Circle())
+                                        case .failure(_):
+                                            Image(systemName: "person.crop.circle.fill")
+                                                .resizable()
+                                                .frame(width: 30, height: 30)
+                                                .clipShape(Circle())
+                                        case .empty:
+                                            ProgressView()
+                                        @unknown default:
+                                            EmptyView()
+                                        }
+                                    }
+                                } else {
+                                    Image(systemName: "person.crop.circle.fill")
+                                        .resizable()
+                                        .frame(width: 30, height: 30)
+                                        .clipShape(Circle())
+                                        .padding(.bottom, 10)
+                                    Button("Upload Profile Image") {
+                                        showingImagePicker = true
+                                    }
+                                }
+                                
+                                Text(username)
+                                
+                            }
+                            
+                            ZStack(alignment: .topLeading) {
+                                if firebase.introductionText.isEmpty && !isEditingIntroduction {
+                                    Text("Write something about yourself...")
+                                        .foregroundColor(.gray)
+                                        .padding(.leading, 5)
+                                        .padding(.top, 8)
+                                }
+                                TextEditor(text: $firebase.introductionText)
+                                    .padding(4)
+                                    .onTapGesture {
+                                        isEditingIntroduction = true
+                                    }
+                            }
+                            .border(Color(UIColor.separator), width: 1)
+                            .cornerRadius(8)
+                            .padding()
+                            
                         }
-                    }
-                }
-
-                // Display user's first and last names (assumed to be properties of firebase)
-                HStack {
-                    Text(firebase.userFirstName)
-                    Text(firebase.userLastName)
-                }
-
-                /// seems not linked to user yet
-                if posts.isEmpty {
-                    Text("Show us your spatial videos and archive them here!")
-                        .padding()
-                } else {
-                    // A list of posts, each post has a thumbnail and optional caption
-                    List(posts) { post in
-                        VStack(alignment: .leading) {
-                            Image(uiImage: UIImage(data: try! Data(contentsOf: post.thumbnailURL))!)
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                            if let caption = post.caption {
-                                Text(caption)
+                        
+                        Spacer()
+                        
+                        if firebase.userPosts.isEmpty {
+                            Text("Show us your spatial videos and archive them here!")
+                                .padding()
+                            NavigationLink(destination: Add3DModelView()) {
+                                Text("Post now →")
+                                    .padding()
+                                    .foregroundColor(Color.white)
+                                    .cornerRadius(8)
+                            }
+                        } else {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack {
+                                    ForEach(firebase.userPosts) { post in
+                                        NavigationLink(destination: DetailViewForUserFeed(post: post, firebaseViewModel: firebase)) {
+                                            VStack {
+                                                if post.fileType == "mov" {
+                                                    AsyncImage(url: post.thumbnailURL) { phase in
+                                                        switch phase {
+                                                        case .success(let image):
+                                                            image.resizable()
+                                                                .aspectRatio(contentMode: .fit)
+                                                        case .failure(_), .empty:
+                                                            EmptyView()
+                                                        @unknown default:
+                                                            EmptyView()
+                                                        }
+                                                    }
+                                                } else {
+                                                    Model3D(url: URL(string: post.videoURL)!) { model in
+                                                        model
+                                                            .resizable()
+                                                            .aspectRatio(contentMode: .fit)
+                                                    } placeholder: {
+                                                        ProgressView()
+                                                    }
+                                                }
+                                                if let caption = post.caption {
+                                                    Text(caption)
+                                                        .lineLimit(3)
+                                                        .truncationMode(.tail)
+                                                }
+                                            }
+                                        }
+                                        .buttonStyle(PlainButtonStyle())
+                                        .frame(width: 300, height: 400)
+                                    }
+                                }
                             }
                         }
+                        
+                        Spacer()
+                        
+                        VStack {
+                            
+                            Text("If you have any concerns or request, please email us below.")
+                                .padding()
+                            
+                            Text("support@teegarden.app")
+                                .padding()
+                            
+                        }
+                        
+                        /*
+                         
+                        NavigationLink(destination: ContentView.logInViewToProfile()) {
+                            Button("Sign Out") {
+                                firebase.signOut()
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                            .foregroundColor(.red)
+                            .padding()
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        .padding(.bottom, 100)
+                         
+                         */
+                        
+                        Spacer()
+                        
+                    }
+                    .frame(width: geometry.size.width - 100, height: geometry.size.height)
+                    .navigationTitle("My Space")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .sheet(isPresented: $showingImagePicker, onDismiss: handleImageSelectionForUpload) {
+                        ImagePicker(selectedImage: $inputImage)
+                    }
+                    .onAppear {
+                        if let userID = Auth.auth().currentUser?.uid {
+                            firebase.fetchUserPosts(userID: userID)
+                            firebase.fetchIntroductionText(userID: userID)
+                        }
                     }
                 }
-
-                NavigationLink(destination: Add3DModelView()) {
-                    Text("Post now →")
-                        .padding()
-                        .foregroundColor(Color.white)
-                        .cornerRadius(8)
-                }
-
-                // Support email address
-                HStack {
-                    Text("Support: support@teegarden.app")
-                    Image(systemName: "paperplane")
-                }
-                
-                // Sign Out button
-                Button("Sign Out") {
-                    firebase.signOut()
-                    /// not working now
-                }
-                .buttonStyle(PlainButtonStyle())
-                .foregroundColor(.red)
-                
-
-                Spacer()
             }
-            .navigationTitle("My Space")
-            .navigationBarTitleDisplayMode(.inline)
-            .sheet(isPresented: $showingImagePicker, onDismiss: handleImageSelectionForUpload) {
-                ImagePicker(selectedImage: $inputImage)
-            }
-
         }
     }
     
-    // This function is called when the image picker is dismissed and an image is selected
     func handleImageSelectionForUpload() {
         guard let userID = Auth.auth().currentUser?.uid, let imageToUpload = inputImage else { return }
         
@@ -681,6 +794,118 @@ struct userAllView: View {
     }
 }
 
+struct userViewPublic: View {
+    var userID: String
+    var username: String
+    @ObservedObject var firebase = FirebaseViewModel()
+
+    var body: some View {
+        NavigationStack {
+            VStack {
+                Spacer()
+                
+                HStack {
+                    
+                    VStack {
+                        
+                        if let profileImageURL = firebase.userProfileImageURL {
+                            AsyncImage(url: profileImageURL) { phase in
+                                switch phase {
+                                case .success(let image):
+                                    image.resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                        .frame(width: 40, height: 40)
+                                        .clipShape(Circle())
+                                case .failure(_):
+                                    Image(systemName: "person.crop.circle.fill")
+                                        .resizable()
+                                        .frame(width: 30, height: 30)
+                                        .clipShape(Circle())
+                                case .empty:
+                                    ProgressView()
+                                @unknown default:
+                                    EmptyView()
+                                }
+                            }
+                        } else {
+                            Image(systemName: "person.crop.circle.fill")
+                                .resizable()
+                                .frame(width: 30, height: 30)
+                                .clipShape(Circle())
+                                .padding(.bottom, 10)
+                        }
+                        
+                        Text(username)
+                            .padding()
+                            .bold()
+                        
+                    }
+                    
+                    Text(firebase.introductionText)
+                        .padding()
+                    
+                }
+                
+                Spacer()
+
+                if firebase.userPosts.isEmpty {
+                    Text("Show us your spatial videos and archive them here!")
+                        .padding()
+                } else {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack {
+                            ForEach(firebase.userPosts) { post in
+                                NavigationLink(destination: DetailViewForUserFeed(post: post, firebaseViewModel: firebase)) {
+                                    VStack {
+                                        if post.fileType == "mov" {
+                                            AsyncImage(url: post.thumbnailURL) { phase in
+                                                switch phase {
+                                                case .success(let image):
+                                                    image.resizable()
+                                                        .aspectRatio(contentMode: .fit)
+                                                case .failure(_), .empty:
+                                                    EmptyView()
+                                                @unknown default:
+                                                    EmptyView()
+                                                }
+                                            }
+                                        } else {
+                                            Model3D(url: URL(string: post.videoURL)!) { model in
+                                                model
+                                                    .resizable()
+                                                    .aspectRatio(contentMode: .fit)
+                                            } placeholder: {
+                                                ProgressView()
+                                            }
+                                        }
+                                        if let caption = post.caption {
+                                            Text(caption)
+                                                .lineLimit(3)
+                                                .truncationMode(.tail)
+                                        }
+                                    }
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                                .frame(width: 300, height: 400)
+                            }
+                        }
+                    }
+                }
+
+                Spacer()
+            }
+            .navigationTitle("The Creator Profile")
+            .navigationBarTitleDisplayMode(.inline)
+            .onAppear {
+                if let userID = Auth.auth().currentUser?.uid {
+                    firebase.fetchUserPosts(userID: userID)
+                    firebase.fetchIntroductionText(userID: userID)
+                }
+            }
+        }
+    }
+}
+
 struct Book: Identifiable {
     let id: String
     let volumeInfo: JSON
@@ -692,9 +917,11 @@ struct Book: Identifiable {
 struct Post: Identifiable {
     var id: String
     var creatorUserID: String
+    var videoURL: String
     var thumbnailURL: URL
     var caption: String?
     var creationDate: Date?
+    var fileType: String
 }
 
 struct User: Identifiable {
