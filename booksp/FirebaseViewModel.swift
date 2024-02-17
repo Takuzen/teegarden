@@ -23,11 +23,11 @@ import Foundation
 class FirebaseViewModel: ObservableObject {
     @Published var userProfileImageURL: URL?
     @Published var userPosts: [Post] = []
-    @Published var introductionText: String = "Write something about yourself..."
+    @Published var introductionText: String = ""
     
     static let shared: FirebaseViewModel = .init()
     
-    private let maxLocalStorageSize: UInt64 = 10 * 1024 * 1024 * 1024
+    private let maxLocalStorageSize: UInt64 = 3 * 1024 * 1024 * 1024
     
     @Published var isLoggedIn:Bool = false
     @Published var username: String = ""
@@ -40,56 +40,6 @@ class FirebaseViewModel: ObservableObject {
     @Published var fileURLs: [URL] = []
     
     @Published var postsWithMetadata: [PostWithMetadata] = []
-    
-    class UserPublicViewModel: ObservableObject {
-        @Published var userPosts: [Post] = []
-        @Published var introductionText: String = ""
-
-        func fetchUserPosts(userID: String) {
-            let db = Firestore.firestore()
-            let postsRef = db.collection("users").document(userID).collection("posts")
-
-            postsRef.getDocuments { (querySnapshot, error) in
-                if let error = error {
-                    print("Error getting posts: \(error.localizedDescription)")
-                    return
-                }
-
-                var tempPosts: [Post] = []
-                for document in querySnapshot!.documents {
-                    let postDict = document.data()
-                    if let thumbnailURLString = postDict["thumbnailURL"] as? String,
-                       let thumbnailURL = URL(string: thumbnailURLString),
-                       let videoURLString = postDict["videoURL"] as? String,
-                       let caption = postDict["caption"] as? String,
-                       let fileType = postDict["fileType"] as? String {
-                        let post = Post(id: document.documentID, creatorUserID: userID, videoURL: videoURLString, thumbnailURL: thumbnailURL, caption: caption, creationDate: nil, fileType: fileType)
-                        tempPosts.append(post)
-                    }
-                }
-                DispatchQueue.main.async {
-                    self.userPosts = tempPosts
-                }
-            }
-        }
-
-        func fetchIntroductionText(userID: String) {
-            let db = Firestore.firestore()
-            db.collection("users").document(userID).getDocument { (document, error) in
-                if let document = document, document.exists {
-                    let data = document.data()
-                    if let introduction = data?["introduction"] as? String {
-                        DispatchQueue.main.async {
-                            self.introductionText = introduction
-                        }
-                    }
-                } else {
-                    print("User document does not exist")
-                }
-            }
-        }
-    }
-
     
     func fetchIntroductionText(userID: String) {
         let db = Firestore.firestore()
@@ -301,30 +251,44 @@ class FirebaseViewModel: ObservableObject {
     func fetchUserPosts(userID: String) {
         let db = Firestore.firestore()
         let postsRef = db.collection("users").document(userID).collection("posts")
-        
+
         postsRef.getDocuments { (querySnapshot, error) in
             if let error = error {
                 print("Error getting posts: \(error.localizedDescription)")
                 return
             }
-            
+
             var tempPosts: [Post] = []
             for document in querySnapshot!.documents {
-                let postDict = document.data()
-                if let thumbnailURLString = postDict["thumbnailURL"] as? String,
-                   let thumbnailURL = URL(string: thumbnailURLString),
-                   let videoURLString = postDict["videoURL"] as? String,
-                   let caption = postDict["caption"] as? String,
-                   let fileType = postDict["fileType"] as? String {
-                    let post = Post(id: document.documentID, creatorUserID: userID, videoURL: videoURLString, thumbnailURL: thumbnailURL, caption: caption, creationDate: nil, fileType: fileType)
-                    tempPosts.append(post)
+                let data = document.data()
+                if let thumbnailURL = URL(string: data["thumbnailURL"] as? String ?? ""),
+                   let videoURL = URL(string: data["videoURL"] as? String ?? ""),
+                   let caption = data["caption"] as? String,
+                   let fileType = data["fileType"] as? String {
+                    
+                    // Fetching user data for username
+                    db.collection("users").document(userID).getDocument { (userDoc, userErr) in
+                        if let userErr = userErr {
+                            print("Error fetching user: \(userErr)")
+                        } else if let userDoc = userDoc, userDoc.exists {
+                            let userData = userDoc.data()
+                            let username = userData?["username"] as? String ?? "Unknown"
+                            let post = Post(id: document.documentID, creatorUserID: userID, videoURL: videoURL.absoluteString, thumbnailURL: thumbnailURL, caption: caption, creationDate: nil, fileType: fileType, username: username)
+                            tempPosts.append(post)
+                            
+                            // Update the published variable
+                            DispatchQueue.main.async {
+                                self.userPosts = tempPosts
+                            }
+                        } else {
+                            print("User document does not exist for userID: \(userID)")
+                        }
+                    }
                 }
-            }
-            DispatchQueue.main.async {
-                self.userPosts = tempPosts
             }
         }
     }
+
 
     func checkAndCleanStorage(at directoryURL: URL) {
         let fileManager = FileManager.default
