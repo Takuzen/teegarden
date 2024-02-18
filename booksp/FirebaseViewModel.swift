@@ -30,6 +30,7 @@ class FirebaseViewModel: ObservableObject {
     private let maxLocalStorageSize: UInt64 = 3 * 1024 * 1024 * 1024
     
     @Published var isLoggedIn:Bool = false
+    @Published var userID: String = ""
     @Published var username: String = ""
     @Published var mail: String = ""
     @Published var password: String = ""
@@ -214,23 +215,20 @@ class FirebaseViewModel: ObservableObject {
         }
     }
 
-    
     func fetchUserProfile() {
         guard let userId = Auth.auth().currentUser?.uid else { return }
         let db = Firestore.firestore()
-        
+
         db.collection("users").document(userId).getDocument { (document, error) in
             if let document = document, document.exists {
                 let data = document.data()
                 if let profileImageURLString = data?["profileImageURL"] as? String,
-                   let profileImageURL = URL(string: profileImageURLString) {
+                   let profileImageURL = URL(string: profileImageURLString),
+                   let username = data?["username"] as? String {
                     DispatchQueue.main.async {
                         self.userProfileImageURL = profileImageURL
-                    }
-                }
-                if let username = data?["username"] as? String {
-                    DispatchQueue.main.async {
                         self.username = username
+                        self.userID = userId
                     }
                 }
             } else {
@@ -249,7 +247,7 @@ class FirebaseViewModel: ObservableObject {
     
     func fetchUserPosts(userID: String) {
         let postsRef = db.collection("users").document(userID).collection("posts")
-            .order(by: "timestamp", descending: true) // Orders the posts by timestamp
+            .order(by: "timestamp", descending: true)
 
         postsRef.getDocuments { (querySnapshot, error) in
             if let error = error {
@@ -260,27 +258,27 @@ class FirebaseViewModel: ObservableObject {
             var tempPosts: [Post] = []
             for document in querySnapshot!.documents {
                 let data = document.data()
-                print("Fetched post data: \(data)") // Debug print to inspect the data structure for each post
+                print("Fetched post data: \(data)")
                 
                 let thumbnailURL = (data["thumbnailURL"] as? String).flatMap(URL.init)
                 let videoURL = (data["videoURL"] as? String).flatMap(URL.init)
                 let caption = data["caption"] as? String
                 let fileType = data["fileType"] as? String
-                let timestamp = data["timestamp"] as? Timestamp // Make sure to retrieve the timestamp
+                let timestamp = data["timestamp"] as? Timestamp
                     
-                if let creationDate = timestamp?.dateValue(), // Convert Timestamp to Date
+                if let creationDate = timestamp?.dateValue(),
                    let fileType = fileType,
                    let videoURLString = videoURL?.absoluteString {
-                    let username = data["username"] as? String ?? "Unknown" // This assumes username is part of the post data
+                    let username = data["username"] as? String ?? "Unknown"
                     let post = Post(id: document.documentID, creatorUserID: userID, videoURL: videoURLString, thumbnailURL: thumbnailURL, caption: caption, creationDate: creationDate, fileType: fileType, username: username)
                     tempPosts.append(post)
                     
-                    print("Appended post: \(post)") // Debug print to confirm the post is being appended
+                    print("Appended post: \(post)")
                 }
             }
             DispatchQueue.main.async {
                 self.userPosts = tempPosts
-                print("Updated userPosts: \(self.userPosts)") // Debug print to inspect the updated posts list
+                print("Updated userPosts: \(self.userPosts)")
             }
         }
     }
@@ -298,7 +296,6 @@ class FirebaseViewModel: ObservableObject {
                 return total + fileSize
             }
 
-            // If the total size exceeds the limit, delete files until it's under the limit
             if totalSize > maxLocalStorageSize {
                 let sortedFiles = contents.sorted { lhs, rhs in
                     let lhsDate: Date
@@ -353,7 +350,7 @@ class FirebaseViewModel: ObservableObject {
     }
 
 
-    func signUp(firstName: String, lastName: String, username: String, completion: @escaping (Bool, String) -> Void) {
+    func signUp(username: String, completion: @escaping (Bool, String) -> Void) {
         // Create a new user account with email and password
         Auth.auth().createUser(withEmail: mail, password: password) { authResult, error in
             if let error = error {
@@ -373,8 +370,6 @@ class FirebaseViewModel: ObservableObject {
             
             // Prepare the additional user data to write to Firestore
             let userData: [String: Any] = [
-                "firstName": firstName,
-                "lastName": lastName,
                 "email": self.mail,
                 "username": username
             ]
@@ -384,8 +379,6 @@ class FirebaseViewModel: ObservableObject {
                 if success {
                     // If writing to Firestore succeeded, update the local user properties
                     DispatchQueue.main.async {
-                        self.userFirstName = firstName
-                        self.userLastName = lastName
                         self.username = username
                     }
                 }
@@ -394,6 +387,7 @@ class FirebaseViewModel: ObservableObject {
             }
         }
     }
+
 
     func uploadProfileImage(userID: String, image: UIImage, completion: @escaping (Result<URL, Error>) -> Void) {
         let imageData: Data?

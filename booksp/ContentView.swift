@@ -92,10 +92,9 @@ struct ContentView: View {
 
         var body: some View {
             NavigationStack {
-                userViewAuth(username: firebase.username)
+                userView(userID: firebase.userID, username: firebase.username)
             }
             .onAppear {
-
                 firebase.fetchUserProfile()
             }
         }
@@ -176,7 +175,7 @@ struct ContentView: View {
                         
                         Text(firebase.errorMessage)
                         
-                        NavigationLink(destination: logInViewToProfile()) {
+                        NavigationLink(destination: SignUpView()) {
                             Text("Create an account?")
                         }
                         .buttonStyle(PlainButtonStyle())
@@ -253,14 +252,11 @@ struct ContentView: View {
         @EnvironmentObject var firebase: FirebaseViewModel
         @State private var showingSuccessAlert = false
         @State private var successMessage = "User registration has succeeded!"
-        @State private var firstName: String = ""
-        @State private var lastName: String = ""
         @State private var navigateToUserHome = false
 
         var body: some View {
-            NavigationStack() {
+            NavigationStack {
                 VStack {
-                    
                     Text("Registration")
                     
                     TextField("Email", text: $firebase.mail)
@@ -273,26 +269,12 @@ struct ContentView: View {
                         .padding()
                         .frame(width: 260.0, height: 100.0)
                     
-                    HStack {
-
-                        TextField("First Name", text: $firstName)
-                            .padding()
-                            .frame(width: 260.0, height: 100.0)
-                        
-                        TextField("Last Name", text: $lastName)
-                            .padding()
-                            .frame(width: 260.0, height: 100.0)
-                        
-                        TextField("Username", text: $firebase.username)
-                            .padding()
-                            .frame(width: 260.0, height: 100.0)
-                    }
+                    TextField("Username", text: $firebase.username)
+                        .padding()
+                        .frame(width: 260.0, height: 100.0)
                     
-                }
-                
-                VStack {
                     Button(action: {
-                        firebase.signUp(firstName: firstName, lastName: lastName, username: firebase.username) { success, message in
+                        firebase.signUp(username: firebase.username) { success, message in
                             if success {
                                 successMessage = message
                                 showingSuccessAlert = true
@@ -326,44 +308,12 @@ struct ContentView: View {
             }
         }
     }
+
 }
 
 // MARK: - ContentView END
 
-struct DetailViewForUserFeed: View {
-    let post: Post
-    @ObservedObject var firebaseViewModel: FirebaseViewModel
-
-    var body: some View {
-        
-        VStack {
-            
-            // profile thumbnail and username
-            
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack {
-                    if let url = post.thumbnailURL {
-                        USDZQLPreview(url: url)
-                            .frame(width: 800, height: 500)
-                    } else {
-                        // Provide a placeholder or an empty view when there's no URL
-                        Text("No Preview Available")
-                            .frame(width: 800, height: 500)
-                            .background(Color.gray.opacity(0.5))
-                    }
-                    
-                    if let caption = post.caption {
-                        Text(caption)
-                            .frame(minWidth: 0, maxWidth: 800)
-                    }
-                }
-            }
-            
-        }
-    }
-}
-
-struct DetailViewForHomeFeed: View {
+struct DetailView: View {
     let postID: String
     let userID: String
     let username: String
@@ -379,7 +329,7 @@ struct DetailViewForHomeFeed: View {
         
         VStack {
             
-            NavigationLink(destination: userViewPublic(userID: userID, username: username)) {
+            NavigationLink(destination: userView(userID: userID, username: username)) {
                 HStack {
                     if let profileImageURL = firebaseViewModel.userProfileImageURL {
                         AsyncImage(url: profileImageURL) { phase in
@@ -513,11 +463,11 @@ struct homeView: View {
                         
                         LazyHGrid(rows: rows, spacing: 20) {
                             ForEach(firebaseViewModel.postsWithMetadata, id: \.id) { postWithMeta in
-                                NavigationLink(destination: DetailViewForHomeFeed(postID: postWithMeta.id, userID: postWithMeta.userID, username: postWithMeta.username, thumbnailURL: URL(string: postWithMeta.thumbnailURL ?? ""), localFileURL: localFileURLs[postWithMeta.id] ?? URL(fileURLWithPath: ""), caption: postWithMeta.caption ,firebaseViewModel: firebaseViewModel)) {
+                                NavigationLink(destination: DetailView(postID: postWithMeta.id, userID: postWithMeta.userID, username: postWithMeta.username, thumbnailURL: URL(string: postWithMeta.thumbnailURL ?? ""), localFileURL: localFileURLs[postWithMeta.id] ?? URL(fileURLWithPath: ""), caption: postWithMeta.caption ,firebaseViewModel: firebaseViewModel)) {
                                     
                                     VStack {
                                         
-                                        NavigationLink(destination: userViewPublic(userID: postWithMeta.userID, username: postWithMeta.username)) {
+                                        NavigationLink(destination: userView(userID: postWithMeta.userID, username: postWithMeta.username)) {
                                             HStack {
                                                 if let profileImageURL = firebaseViewModel.userProfileImageURL {
                                                     AsyncImage(url: profileImageURL) { phase in
@@ -708,14 +658,17 @@ struct ImagePicker: UIViewControllerRepresentable {
     }
 }
 
-struct userViewAuth: View {
+struct userView: View {
     @EnvironmentObject var firebase: FirebaseViewModel
     @State private var showingImagePicker = false
     @State private var inputImage: UIImage?
     @State private var posts: [Post] = []
     @State private var isEditingIntroduction: Bool = false
     @State private var newIntroductionText = ""
+    @State private var localFileURLs: [String: URL] = [:]
+    @State private var isCurrentUser = false
     
+    var userID: String
     var username: String
 
 var body: some View {
@@ -740,11 +693,13 @@ var body: some View {
                                             .aspectRatio(contentMode: .fill)
                                             .frame(width: 60, height: 60)
                                             .clipShape(Circle())
+                                            .padding()
                                     case .failure(_):
                                         Image(systemName: "person.crop.circle.fill")
                                             .resizable()
                                             .frame(width: 40, height: 40)
                                             .clipShape(Circle())
+                                            .padding()
                                     case .empty:
                                         ProgressView()
                                     @unknown default:
@@ -756,7 +711,6 @@ var body: some View {
                                     .resizable()
                                     .frame(width: 30, height: 30)
                                     .clipShape(Circle())
-                                    .padding(.bottom, 10)
                                 Button("Upload Profile Image") {
                                     showingImagePicker = true
                                 }
@@ -765,6 +719,8 @@ var body: some View {
                             Text(username)
                                 .bold()
                                 .padding()
+                            
+                            Spacer()
                             
                         }
                         
@@ -775,6 +731,7 @@ var body: some View {
                                     .padding(.leading, 5)
                                     .padding(.top, 8)
                             }
+                            
                             VStack {
                                 if isEditingIntroduction {
                                     TextEditor(text: $newIntroductionText)
@@ -787,15 +744,33 @@ var body: some View {
                                         .padding(4)
                                 }
 
-                                Button(action: {
-                                    if isEditingIntroduction {
-                                        if let userID = Auth.auth().currentUser?.uid {
-                                            firebase.updateIntroductionText(userID: userID, introduction: newIntroductionText)
+                                if isCurrentUser {
+
+                                    Button(action: {
+                                       if isEditingIntroduction {
+                                           firebase.updateIntroductionText(userID: userID, introduction: newIntroductionText)
+                                       } else {
+                                           newIntroductionText = firebase.introductionText
+                                       }
+                                       isEditingIntroduction.toggle()
+                                   }) {
+                                       Text(isEditingIntroduction ? "Save" : "Edit")
+                                   }
+                                   .padding()
+                                    
+                                } else {
+
+                                    Button(action: {
+                                        UIPasteboard.general.string = firebase.mail
+                                    }) {
+                                        HStack {
+                                            Text("Reply")
+                                            Image(systemName: "arrowshape.turn.up.right")
                                         }
+                                        .padding()
                                     }
-                                    isEditingIntroduction.toggle()
-                                }) {
-                                    Text(isEditingIntroduction ? "Save" : "Edit")
+                                    .buttonStyle(PlainButtonStyle())
+                                    
                                 }
                             }
                         }
@@ -806,7 +781,7 @@ var body: some View {
                     
                     if firebase.userPosts.isEmpty {
                         VStack {
-                            Text("Show us your spatial videos and archive them here!")
+                            Text("There is no post so far.")
                                 .padding()
                             NavigationLink(destination: Add3DModelView()) {
                                 Text("Post now →")
@@ -817,44 +792,79 @@ var body: some View {
                         }
                         .background(Color.red.opacity(0.3))
                     } else {
+                        
                         ScrollView(.horizontal, showsIndicators: false) {
+                            
                             LazyHStack(spacing: 20) {
+                                
                                 ForEach(firebase.userPosts) { post in
-                                    NavigationLink(destination: DetailViewForUserFeed(post: post, firebaseViewModel: firebase)) {
+                                    
+                                    NavigationLink(destination: DetailView(postID: post.id, userID: post.creatorUserID, username: username, thumbnailURL: post.thumbnailURL, localFileURL: localFileURLs[post.id] ?? URL(fileURLWithPath: ""), caption: post.caption ?? "", firebaseViewModel: firebase)) {
+                                        
                                         VStack {
                                             if post.fileType == "mov" {
+                                                
                                                 AsyncImage(url: post.thumbnailURL) { phase in
                                                     switch phase {
                                                     case .success(let image):
                                                         image.resizable()
                                                             .aspectRatio(contentMode: .fit)
                                                             .clipShape(RoundedRectangle(cornerRadius: 10))
+                                                            .frame(width: 400, height: 250)
                                                     case .failure(_), .empty:
                                                         EmptyView()
                                                     @unknown default:
                                                         EmptyView()
                                                     }
                                                 }
+                                                
+                                                if let caption = post.caption {
+                                                    Text(caption)
+                                                        .lineLimit(3)
+                                                        .truncationMode(.tail)
+                                                        .padding(.top, 10)
+                                                        .frame(width: 400)
+                                                }
+                                                
                                             } else if post.fileType == "usdz" || post.fileType == "reality" {
+                                                
                                                 Model3D(url: URL(string: post.videoURL)!) { model in
                                                     model
                                                         .resizable()
                                                         .aspectRatio(contentMode: .fit)
+                                                        .frame(width: 300, height: 187.5)
                                                 } placeholder: {
                                                     ProgressView()
                                                 }
+                                                
+                                                if let caption = post.caption {
+                                                    Text(caption)
+                                                        .lineLimit(3)
+                                                        .truncationMode(.tail)
+                                                        .padding(.top, 50)
+                                                        .frame(width: 400)
+                                                }
+                                                
                                             }
-                                            if let caption = post.caption {
-                                                Text(caption)
-                                                    .lineLimit(3)
-                                                    .truncationMode(.tail)
-                                                    .padding(.top, 10)
+                                            
+                                        }
+                                        .frame(width: 500, height: 312.5)
+                                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                                    }
+                                    .buttonStyle(PlainButtonStyle())
+                                    .padding(.horizontal, 10)
+                                    .onAppear {
+                                        if localFileURLs[post.id] == nil {
+                                            firebase.downloadVideoFileForQL(from: post.videoURL, fileType: post.fileType) { result in
+                                                switch result {
+                                                case .success(let url):
+                                                    localFileURLs[post.id] = url
+                                                case .failure(let error):
+                                                    print("Error downloading video for post \(post.id): \(error.localizedDescription)")
+                                                }
                                             }
                                         }
                                     }
-                                    .buttonStyle(PlainButtonStyle())
-                                    .frame(width: 300, height: 400)
-                                    .padding(.horizontal, 10)
                                 }
                             }
                         }
@@ -877,21 +887,6 @@ var body: some View {
                     }
                     .padding()
                     
-                    /*
-                     
-                    NavigationLink(destination: ContentView.logInViewToProfile()) {
-                        Button("Sign Out") {
-                            firebase.signOut()
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                        .foregroundColor(.red)
-                        .padding()
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                    .padding(.bottom, 100)
-                     
-                     */
-                    
                     Spacer()
                     
                 }
@@ -899,16 +894,21 @@ var body: some View {
                 .padding(.bottom, 30)
                 .padding(.leading, 30)
                 .padding(.trailing, 30)
-                .navigationTitle("My Space")
+                .navigationTitle(isCurrentUser ? "My Space" : "The Creator Profile")
                 .navigationBarTitleDisplayMode(.inline)
                 .sheet(isPresented: $showingImagePicker, onDismiss: handleImageSelectionForUpload) {
                     ImagePicker(selectedImage: $inputImage)
                 }
-                .onAppear {
-                    if let userID = Auth.auth().currentUser?.uid {
-                        firebase.fetchUserPosts(userID: userID)
-                        firebase.fetchIntroductionText(userID: userID)
-                    }
+            }
+            .onAppear {
+                
+                let currentUserId = Auth.auth().currentUser?.uid
+                isCurrentUser = userID == currentUserId
+
+                if isCurrentUser {
+                    firebase.fetchUserProfile()
+                    firebase.fetchUserPosts(userID: userID)
+                    firebase.fetchIntroductionText(userID: userID)
                 }
             }
         }
@@ -931,162 +931,6 @@ var body: some View {
             case .failure(let error):
                 print("Error uploading profile image: \(error.localizedDescription)")
             }
-        }
-    }
-}
-
-struct userViewPublic: View {
-    var userID: String
-    var username: String
-    @ObservedObject var firebase = FirebaseViewModel()
-
-    var body: some View {
-        NavigationStack {
-            
-            ScrollView(.vertical) {
-                
-                VStack {
-                    
-                    Spacer()
-                    
-                    HStack {
-                        
-                        Spacer()
-                        
-                        VStack {
-                            
-                            if let profileImageURL = firebase.userProfileImageURL {
-                                AsyncImage(url: profileImageURL) { phase in
-                                    switch phase {
-                                    case .success(let image):
-                                        image.resizable()
-                                            .aspectRatio(contentMode: .fill)
-                                            .frame(width: 40, height: 40)
-                                            .clipShape(Circle())
-                                    case .failure(_):
-                                        Image(systemName: "person.crop.circle.fill")
-                                            .resizable()
-                                            .frame(width: 30, height: 30)
-                                            .clipShape(Circle())
-                                    case .empty:
-                                        ProgressView()
-                                    @unknown default:
-                                        EmptyView()
-                                    }
-                                }
-                            } else {
-                                Image(systemName: "person.crop.circle.fill")
-                                    .resizable()
-                                    .frame(width: 30, height: 30)
-                                    .clipShape(Circle())
-                                    .padding(.bottom, 10)
-                            }
-                            
-                            Text(username)
-                                .padding()
-                                .bold()
-                            
-                        }
-                        
-                        Spacer()
-                        
-                        Text(firebase.introductionText)
-                            .padding()
-                        
-                        Spacer()
-                        
-                        VStack {
-                            
-                            Button(action: {
-                                UIPasteboard.general.string = firebase.mail
-                            }) {
-                                Text("Reply")
-                                Image(systemName: "arrowshape.turn.up.right")
-                                    .resizable()
-                                    .frame(width: 20, height: 20)
-                                    .padding()
-                            }
-                            .buttonStyle(PlainButtonStyle())
-                            
-                            Spacer()
-                        }
-                        
-                        Spacer()
-                        
-                    }
-                    
-                    Spacer()
-                    
-                    if firebase.userPosts.isEmpty {
-                        
-                        Text("There is no post so far.")
-                            .padding()
-                        
-                    } else {
-                        
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            
-                            HStack {
-                                
-                                ForEach(firebase.userPosts) { post in
-                                    
-                                    NavigationLink(destination: DetailViewForUserFeed(post: post, firebaseViewModel: firebase)) {
-                                        
-                                        VStack {
-                                            
-                                            if post.fileType == "mov" {
-                                                
-                                                AsyncImage(url: post.thumbnailURL) { phase in
-                                                    switch phase {
-                                                    case .success(let image):
-                                                        image.resizable()
-                                                            .aspectRatio(contentMode: .fit)
-                                                    case .failure(_), .empty:
-                                                        EmptyView()
-                                                    @unknown default:
-                                                        EmptyView()
-                                                    }
-                                                }
-                                                
-                                            } else if post.fileType == "usdz" || post.fileType == "reality" {
-                                                
-                                                Model3D(url: URL(string: post.videoURL)!) { model in
-                                                    model
-                                                        .resizable()
-                                                        .aspectRatio(contentMode: .fit)
-                                                } placeholder: {
-                                                    ProgressView()
-                                                }
-                                            }
-                                            
-                                            if let caption = post.caption {
-                                                
-                                                Text(caption)
-                                                    .lineLimit(3)
-                                                    .truncationMode(.tail)
-                                                
-                                            }
-                                        }
-                                    }
-                                    .buttonStyle(PlainButtonStyle())
-                                    .frame(width: 300, height: 400)
-                                }
-                            }
-                        }
-                    }
-                    
-                    Spacer()
-                }
-                .navigationTitle("The Creator Profile")
-                .navigationBarTitleDisplayMode(.inline)
-                .onAppear {
-                    if let userID = Auth.auth().currentUser?.uid {
-                        firebase.fetchUserPosts(userID: userID)
-                        firebase.fetchIntroductionText(userID: userID)
-                    }
-                }
-            }
-            .padding()
         }
     }
 }
@@ -1114,8 +958,6 @@ struct User: Identifiable {
     var id: String
     var profileImageURL: URL
     var username: String
-    var firstName: String
-    var lastName: String
     var posts: [Post]
 }
 
@@ -1550,17 +1392,21 @@ struct Add3DModelView: View {
                         .padding()
                         
                         ZStack(alignment: .topLeading) {
+                            
                             if captionText.isEmpty && !isEditing {
                                 Text("Caption...")
                                     .foregroundColor(.gray)
                                     .padding(.leading, 5)
                                     .padding(.top, 8)
+                                
                             }
+                            
                             TextEditor(text: $captionText)
                                 .padding(4)
                                 .onTapGesture {
                                     isEditing = true
                                 }
+                            
                         }
                         .frame(width: 800, height: 100)
                         .border(Color(UIColor.separator), width: 4)
