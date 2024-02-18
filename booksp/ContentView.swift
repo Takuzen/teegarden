@@ -14,6 +14,7 @@ import Foundation
 import SwiftyJSON
 
 import AVFoundation
+import AVKit
     
 struct ContentView: View {
     
@@ -341,8 +342,15 @@ struct DetailViewForUserFeed: View {
             
             ScrollView(.vertical, showsIndicators: false) {
                 VStack {
-                    USDZQLPreview(url: post.thumbnailURL)
-                        .frame(width: 800, height: 500)
+                    if let url = post.thumbnailURL {
+                        USDZQLPreview(url: url)
+                            .frame(width: 800, height: 500)
+                    } else {
+                        // Provide a placeholder or an empty view when there's no URL
+                        Text("No Preview Available")
+                            .frame(width: 800, height: 500)
+                            .background(Color.gray.opacity(0.5))
+                    }
                     
                     if let caption = post.caption {
                         Text(caption)
@@ -357,28 +365,110 @@ struct DetailViewForUserFeed: View {
 
 struct DetailViewForHomeFeed: View {
     let postID: String
-    @ObservedObject var firebaseViewModel: FirebaseViewModel
+    let userID: String
+    let username: String
+    let thumbnailURL: URL?
     let localFileURL: URL
-
+    let caption: String
+    
+    @ObservedObject var firebaseViewModel: FirebaseViewModel
+    
+    @State private var showSpatialPlayer = false
+    
     var body: some View {
         
         VStack {
             
-            // profile thumbnail and username
+            NavigationLink(destination: userViewPublic(userID: userID, username: username)) {
+                HStack {
+                    if let profileImageURL = firebaseViewModel.userProfileImageURL {
+                        AsyncImage(url: profileImageURL) { phase in
+                            switch phase {
+                            case .success(let image):
+                                image.resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: 40, height: 40)
+                                    .clipShape(Circle())
+                            case .failure(_):
+                                Image(systemName: "person.crop.circle.fill")
+                                    .resizable()
+                                    .frame(width: 30, height: 30)
+                                    .clipShape(Circle())
+                            case .empty:
+                                ProgressView()
+                            @unknown default:
+                                EmptyView()
+                            }
+                        }
+                    } else {
+                        Image(systemName: "person.crop.circle.fill")
+                            .resizable()
+                            .frame(width: 30, height: 30)
+                            .clipShape(Circle())
+                    }
+                    
+                    Text(username)
+                        .bold()
+                        .padding(.leading, 5)
+                    
+                    Spacer()
+                }
+                .padding(.bottom, 25)
+            }
+            .buttonStyle(PlainButtonStyle())
+            .frame(width: 800)
             
             ScrollView(.vertical, showsIndicators: false) {
                 VStack {
                     if let post = firebaseViewModel.postsWithMetadata.first(where: { $0.id == postID }) {
+
+                        if post.fileType == "mov" {
+                            Button(action: {
+                                self.showSpatialPlayer = true
+                            }) {
+                                ZStack {
+
+                                    AsyncImage(url: thumbnailURL) { image in
+                                        image.resizable()
+                                             .aspectRatio(contentMode: .fill)
+                                             .frame(width: 800, height: 500)
+                                             .clipped()
+                                             .clipShape(RoundedRectangle(cornerRadius: 10))
+                                    } placeholder: {
+                                        Color.gray
+                                            .frame(width: 800, height: 500)
+                                    }
+
+                                    Image(systemName: "play.circle.fill")
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fit)
+                                        .frame(width: 100, height: 100)
+                                        .foregroundColor(.white)
+                                }
+                            }
+                            .sheet(isPresented: $showSpatialPlayer) {
+                                SpatialVideoPlayer(videoURL: localFileURL)
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                            
+                        } else {
+
+                            USDZQLPreview(url: localFileURL)
+                                .frame(width: 800, height: 500)
+                            
+                        }
                         
-                        USDZQLPreview(url: localFileURL)
-                            .frame(width: 800, height: 500)
-                        
-                        Text(post.caption)
-                            .frame(minWidth: 0, maxWidth: 800)
-                            .padding(.top, 20)
                     } else {
+                        
                         Text("Post details not found.")
+                        
                     }
+                    
+                    Text(caption)
+                        .frame(width: 800, alignment: .leading)
+                        .padding(.top, 20)
+                        .padding(.bottom, 20)
+                    
                 }
             }
             
@@ -423,66 +513,78 @@ struct homeView: View {
                         
                         LazyHGrid(rows: rows, spacing: 20) {
                             ForEach(firebaseViewModel.postsWithMetadata, id: \.id) { postWithMeta in
-                                NavigationLink(destination: DetailViewForHomeFeed(postID: postWithMeta.id, firebaseViewModel: firebaseViewModel, localFileURL: localFileURLs[postWithMeta.id] ?? URL(fileURLWithPath: ""))) {                                    VStack {
-                                    NavigationLink(destination: userViewPublic(userID: postWithMeta.userID, username: postWithMeta.username)) {
-                                        HStack {
-                                            if let profileImageURL = firebaseViewModel.userProfileImageURL {
-                                                AsyncImage(url: profileImageURL) { phase in
-                                                    switch phase {
-                                                    case .success(let image):
-                                                        image.resizable()
-                                                            .aspectRatio(contentMode: .fill)
-                                                            .frame(width: 40, height: 40)
-                                                            .clipShape(Circle())
-                                                    case .failure(_):
-                                                        Image(systemName: "person.crop.circle.fill")
-                                                            .resizable()
-                                                            .frame(width: 30, height: 30)
-                                                            .clipShape(Circle())
-                                                    case .empty:
-                                                        ProgressView()
-                                                    @unknown default:
-                                                        EmptyView()
+                                NavigationLink(destination: DetailViewForHomeFeed(postID: postWithMeta.id, userID: postWithMeta.userID, username: postWithMeta.username, thumbnailURL: URL(string: postWithMeta.thumbnailURL ?? ""), localFileURL: localFileURLs[postWithMeta.id] ?? URL(fileURLWithPath: ""), caption: postWithMeta.caption ,firebaseViewModel: firebaseViewModel)) {
+                                    
+                                    VStack {
+                                        
+                                        NavigationLink(destination: userViewPublic(userID: postWithMeta.userID, username: postWithMeta.username)) {
+                                            HStack {
+                                                if let profileImageURL = firebaseViewModel.userProfileImageURL {
+                                                    AsyncImage(url: profileImageURL) { phase in
+                                                        switch phase {
+                                                        case .success(let image):
+                                                            image.resizable()
+                                                                .aspectRatio(contentMode: .fill)
+                                                                .frame(width: 40, height: 40)
+                                                                .clipShape(Circle())
+                                                        case .failure(_):
+                                                            Image(systemName: "person.crop.circle.fill")
+                                                                .resizable()
+                                                                .frame(width: 30, height: 30)
+                                                                .clipShape(Circle())
+                                                        case .empty:
+                                                            ProgressView()
+                                                        @unknown default:
+                                                            EmptyView()
+                                                        }
                                                     }
+                                                } else {
+                                                    Image(systemName: "person.crop.circle.fill")
+                                                        .resizable()
+                                                        .frame(width: 30, height: 30)
+                                                        .clipShape(Circle())
                                                 }
-                                            } else {
-                                                Image(systemName: "person.crop.circle.fill")
-                                                    .resizable()
-                                                    .frame(width: 30, height: 30)
-                                                    .clipShape(Circle())
+                                                
+                                                Text(postWithMeta.username)
+                                                    .bold()
+                                                    .padding(.leading, 5)
+                                                
+                                                Spacer()
                                             }
-                                            
-                                            Text(postWithMeta.username)
-                                                .bold()
-                                                .padding(.leading, 5)
-                                            
-                                            Spacer()
+                                            .padding(.bottom, 25)
                                         }
-                                        .padding(.bottom, 25)
-                                    }
-                                    .buttonStyle(PlainButtonStyle())
+                                        .buttonStyle(PlainButtonStyle())
+                                        .frame(width: 600)
                                         
                                         switch postWithMeta.fileType {
                                         case "mov":
                                             if let thumbnailURLString = postWithMeta.thumbnailURL, let url = URL(string: thumbnailURLString) {
-                                                AsyncImage(url: url) { phase in
-                                                    switch phase {
-                                                    case .success(let image):
-                                                        image.resizable()
-                                                            .scaledToFill()
-                                                            .frame(width: 600, height: 247.22)
-                                                            .clipped()
-                                                            .transition(.opacity)
-                                                            .clipShape(RoundedRectangle(cornerRadius: 10))
-                                                    case .failure(_), .empty:
-                                                        EmptyView()
-                                                    @unknown default:
-                                                        EmptyView()
+                                                ZStack(alignment: .topTrailing) {
+                                                    AsyncImage(url: url) { phase in
+                                                        switch phase {
+                                                        case .success(let image):
+                                                            image.resizable()
+                                                                .scaledToFill()
+                                                                .frame(width: 600, height: 247.22)
+                                                                .clipped()
+                                                                .transition(.opacity)
+                                                                .clipShape(RoundedRectangle(cornerRadius: 10))
+                                                        case .failure(_), .empty:
+                                                            EmptyView()
+                                                        @unknown default:
+                                                            EmptyView()
+                                                        }
                                                     }
+                                                    .padding(.top, 5)
+                                                    .padding(.trailing, 5)
+                                                    
+                                                    Image(systemName: "pano.badge.play.fill")
+                                                        .symbolRenderingMode(.palette)
+                                                        .imageScale(.large)
+                                                        .padding([.top, .trailing], 20)
                                                 }
-                                                .padding(.top, 20)
-                                                .padding(.bottom, 30)
                                             } else {
+                                                
                                                 Text("No thumbnail available")
                                                     .frame(width: 600, height: 247.22)
                                                     .background(Color.gray.opacity(0.5))
@@ -490,19 +592,29 @@ struct homeView: View {
                                                     .shadow(radius: 10)
                                                     .padding(.top, 30)
                                                     .padding(.bottom, 30)
+                                                
                                             }
                                         case "usdz", "reality":
-                                            Model3D(url: URL(string: postWithMeta.videoURL)!) { model in
-                                                model
-                                                    .resizable()
-                                                    .aspectRatio(contentMode: .fit)
-                                            } placeholder: {
-                                                ProgressView()
+                                            ZStack(alignment: .topTrailing) {
+                                                
+                                                Model3D(url: URL(string: postWithMeta.videoURL)!) { model in
+                                                    model
+                                                        .resizable()
+                                                        .aspectRatio(contentMode: .fit)
+                                                } placeholder: {
+                                                    ProgressView()
+                                                }
+                                                .frame(width: 540, height: 187.22)
+                                                .clipShape(RoundedRectangle(cornerRadius: 10))
+                                                .padding(.top, 55)
+                                                .padding(.bottom, 55)
+                                                
+                                                Image(systemName: "move.3d")
+                                                    .symbolRenderingMode(.palette)
+                                                    .imageScale(.large)
+                                                    .padding([.top, .trailing], 20)
+                                                
                                             }
-                                            .frame(width: 540, height: 187.22)
-                                            .clipShape(RoundedRectangle(cornerRadius: 10))
-                                            .padding(.top, 55)
-                                            .padding(.bottom, 55)
                                         default:
                                             Text("Unsupported or no preview available")
                                                 .frame(width: 600, height: 247.22)
@@ -649,7 +761,6 @@ var body: some View {
                                     showingImagePicker = true
                                 }
                             }
-                                
                             
                             Text(username)
                                 .bold()
@@ -669,7 +780,7 @@ var body: some View {
                                     TextEditor(text: $newIntroductionText)
                                         .padding(4)
                                         .frame(maxHeight: .infinity)
-                                        .border(Color(UIColor.separator), width: 2)
+                                        .border(Color(UIColor.separator), width: 4)
                                         .cornerRadius(8)
                                 } else {
                                     Text(firebase.introductionText)
@@ -717,6 +828,7 @@ var body: some View {
                                                     case .success(let image):
                                                         image.resizable()
                                                             .aspectRatio(contentMode: .fit)
+                                                            .clipShape(RoundedRectangle(cornerRadius: 10))
                                                     case .failure(_), .empty:
                                                         EmptyView()
                                                     @unknown default:
@@ -906,15 +1018,24 @@ struct userViewPublic: View {
                     Spacer()
                     
                     if firebase.userPosts.isEmpty {
-                        Text("There is no post.")
+                        
+                        Text("There is no post so far.")
                             .padding()
+                        
                     } else {
+                        
                         ScrollView(.horizontal, showsIndicators: false) {
+                            
                             HStack {
+                                
                                 ForEach(firebase.userPosts) { post in
+                                    
                                     NavigationLink(destination: DetailViewForUserFeed(post: post, firebaseViewModel: firebase)) {
+                                        
                                         VStack {
+                                            
                                             if post.fileType == "mov" {
+                                                
                                                 AsyncImage(url: post.thumbnailURL) { phase in
                                                     switch phase {
                                                     case .success(let image):
@@ -926,7 +1047,9 @@ struct userViewPublic: View {
                                                         EmptyView()
                                                     }
                                                 }
+                                                
                                             } else if post.fileType == "usdz" || post.fileType == "reality" {
+                                                
                                                 Model3D(url: URL(string: post.videoURL)!) { model in
                                                     model
                                                         .resizable()
@@ -935,10 +1058,13 @@ struct userViewPublic: View {
                                                     ProgressView()
                                                 }
                                             }
+                                            
                                             if let caption = post.caption {
+                                                
                                                 Text(caption)
                                                     .lineLimit(3)
                                                     .truncationMode(.tail)
+                                                
                                             }
                                         }
                                     }
@@ -977,7 +1103,7 @@ struct Post: Identifiable {
     var id: String
     var creatorUserID: String
     var videoURL: String
-    var thumbnailURL: URL
+    var thumbnailURL: URL?
     var caption: String?
     var creationDate: Date?
     var fileType: String
@@ -1032,6 +1158,24 @@ struct USDZQLPreview: UIViewControllerRepresentable {
 
         func previewController(_ controller: QLPreviewController, previewItemAt index: Int) -> QLPreviewItem {
                 return url as QLPreviewItem
+        }
+    }
+}
+
+struct SpatialVideoPlayer: UIViewControllerRepresentable {
+    var videoURL: URL
+
+    func makeUIViewController(context: Context) -> AVPlayerViewController {
+        let controller = AVPlayerViewController()
+        controller.player = AVPlayer(url: videoURL)
+        controller.player?.play()
+        return controller
+    }
+
+    func updateUIViewController(_ uiViewController: AVPlayerViewController, context: Context) {
+        if uiViewController.player?.currentItem?.asset != AVAsset(url: videoURL) {
+            uiViewController.player = AVPlayer(url: videoURL)
+            uiViewController.player?.play()
         }
     }
 }
@@ -1419,7 +1563,7 @@ struct Add3DModelView: View {
                                 }
                         }
                         .frame(width: 800, height: 100)
-                        .border(Color(UIColor.separator), width: 2)
+                        .border(Color(UIColor.separator), width: 4)
                         .cornerRadius(8)
                         .padding()
                         .onAppear {
@@ -1566,7 +1710,7 @@ struct Add3DModelView: View {
                                 }
                         }
                         .frame(width: 800, height: 100)
-                        .border(Color(UIColor.separator), width: 2)
+                        .border(Color(UIColor.separator), width: 4)
                         .cornerRadius(8)
                         .padding()
                         .onAppear {

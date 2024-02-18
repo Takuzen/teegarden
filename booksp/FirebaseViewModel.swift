@@ -79,7 +79,7 @@ class FirebaseViewModel: ObservableObject {
     }
 
     func fetchPostsWithMetadata() {
-        db.collection("posts").getDocuments { (querySnapshot, err) in
+        db.collection("posts").order(by: "timestamp", descending: true).getDocuments { (querySnapshot, err) in
             if let err = err {
                 print("Error getting documents: \(err)")
                 return
@@ -106,7 +106,6 @@ class FirebaseViewModel: ObservableObject {
                             let postWithMeta = PostWithMetadata(id: postID, caption: caption, thumbnailURL: thumbnailURL, username: username, videoURL: videoURL, fileType: fileType, userID: userID)
                             tempPosts.append(postWithMeta)
                             
-                            // Update the published variable
                             DispatchQueue.main.async {
                                 self.postsWithMetadata = tempPosts
                             }
@@ -249,8 +248,8 @@ class FirebaseViewModel: ObservableObject {
     }
     
     func fetchUserPosts(userID: String) {
-        let db = Firestore.firestore()
         let postsRef = db.collection("users").document(userID).collection("posts")
+            .order(by: "timestamp", descending: true) // Orders the posts by timestamp
 
         postsRef.getDocuments { (querySnapshot, error) in
             if let error = error {
@@ -261,33 +260,31 @@ class FirebaseViewModel: ObservableObject {
             var tempPosts: [Post] = []
             for document in querySnapshot!.documents {
                 let data = document.data()
-                if let thumbnailURL = URL(string: data["thumbnailURL"] as? String ?? ""),
-                   let videoURL = URL(string: data["videoURL"] as? String ?? ""),
-                   let caption = data["caption"] as? String,
-                   let fileType = data["fileType"] as? String {
+                print("Fetched post data: \(data)") // Debug print to inspect the data structure for each post
+                
+                let thumbnailURL = (data["thumbnailURL"] as? String).flatMap(URL.init)
+                let videoURL = (data["videoURL"] as? String).flatMap(URL.init)
+                let caption = data["caption"] as? String
+                let fileType = data["fileType"] as? String
+                let timestamp = data["timestamp"] as? Timestamp // Make sure to retrieve the timestamp
                     
-                    // Fetching user data for username
-                    db.collection("users").document(userID).getDocument { (userDoc, userErr) in
-                        if let userErr = userErr {
-                            print("Error fetching user: \(userErr)")
-                        } else if let userDoc = userDoc, userDoc.exists {
-                            let userData = userDoc.data()
-                            let username = userData?["username"] as? String ?? "Unknown"
-                            let post = Post(id: document.documentID, creatorUserID: userID, videoURL: videoURL.absoluteString, thumbnailURL: thumbnailURL, caption: caption, creationDate: nil, fileType: fileType, username: username)
-                            tempPosts.append(post)
-                            
-                            // Update the published variable
-                            DispatchQueue.main.async {
-                                self.userPosts = tempPosts
-                            }
-                        } else {
-                            print("User document does not exist for userID: \(userID)")
-                        }
-                    }
+                if let creationDate = timestamp?.dateValue(), // Convert Timestamp to Date
+                   let fileType = fileType,
+                   let videoURLString = videoURL?.absoluteString {
+                    let username = data["username"] as? String ?? "Unknown" // This assumes username is part of the post data
+                    let post = Post(id: document.documentID, creatorUserID: userID, videoURL: videoURLString, thumbnailURL: thumbnailURL, caption: caption, creationDate: creationDate, fileType: fileType, username: username)
+                    tempPosts.append(post)
+                    
+                    print("Appended post: \(post)") // Debug print to confirm the post is being appended
                 }
+            }
+            DispatchQueue.main.async {
+                self.userPosts = tempPosts
+                print("Updated userPosts: \(self.userPosts)") // Debug print to inspect the updated posts list
             }
         }
     }
+
 
 
     func checkAndCleanStorage(at directoryURL: URL) {
@@ -440,10 +437,9 @@ class FirebaseViewModel: ObservableObject {
     }
 
     func storeUserData(userId: String, data: [String: Any], completion: @escaping (Bool, String) -> Void) {
-        // Reference to the Firestore database
+
         let db = Firestore.firestore()
         
-        // Set the data for the specific user
         db.collection("users").document(userId).setData(data) { error in
             if let error = error {
                 completion(false, "Error writing user data: \(error.localizedDescription)")
