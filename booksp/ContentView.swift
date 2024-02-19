@@ -60,7 +60,7 @@ struct ContentView: View {
                         logInViewToPost()
                             .environmentObject(firebase)
                     } else if tab == .profile && firebase.isLoggedIn {
-                        UserAllViewWrapper()
+                        UserViewWrapper()
                             .environmentObject(FirebaseViewModel.shared)
                     } else if tab == .post && !firebase.isLoggedIn {
                         SignUpView()
@@ -79,6 +79,7 @@ struct ContentView: View {
         .onAppear {
             selectedTab = .home
         }
+        /*
         .onChange(of: scenePhase) { newScenePhase, _ in
             if newScenePhase == .background {
 
@@ -92,6 +93,7 @@ struct ContentView: View {
                 }
             }
         }
+         */
     }
 
     struct HomeViewWrapper: View {
@@ -102,16 +104,16 @@ struct ContentView: View {
         }
     }
 
-    struct UserAllViewWrapper: View {
+    struct UserViewWrapper: View {
+        
         @StateObject var firebase = FirebaseViewModel()
 
         var body: some View {
+            
             NavigationStack {
-                userView(userID: firebase.userID, username: firebase.username)
+                userView(userID: Auth.auth().currentUser?.uid ?? "", username: firebase.username)
             }
-            .onAppear {
-                firebase.fetchUserProfile(userID: firebase.userID)
-            }
+
         }
     }
         
@@ -167,7 +169,6 @@ struct ContentView: View {
                                     print("enter success logic")
                                     successMessage = message
                                     showingSuccessAlert = true
-                                    
                                     firebase.isLoggedIn = true
                                 } else {
                                     firebase.errorMessage = message
