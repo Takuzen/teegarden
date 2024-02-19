@@ -320,7 +320,6 @@ struct DetailView: View {
     let thumbnailURL: URL?
     let localFileURL: URL
     let caption: String
-    let timer = Timer.publish(every: 10, on: .main, in: .common).autoconnect()
     
     @ObservedObject var firebaseViewModel: FirebaseViewModel
     
@@ -436,13 +435,6 @@ struct DetailView: View {
             }
             .onAppear {
                 fetchProfileImage(for: userID)
-            }
-            .onReceive(timer) { _ in
-                firebaseViewModel.fetchPostsWithMetadata {
-                    for post in firebaseViewModel.postsWithMetadata {
-                        fetchProfileImage(for: post.userID)
-                    }
-                }
             }
         }
     }
@@ -714,6 +706,18 @@ struct userView: View {
     @State private var newIntroductionText = ""
     @State private var localFileURLs: [String: URL] = [:]
     @State private var isCurrentUser = false
+    @State private var profileImageURL: URL?
+    
+    func fetchProfileImage(for userID: String) {
+        print("Fetching profile image for user ID: \(userID)")
+        firebase.fetchProfileImageURL(for: userID) { url in
+            if let url = url {
+                withAnimation {
+                    profileImageURL = url // Update the single URL state
+                }
+            }
+        }
+    }
     
     var userID: String
     var username: String
@@ -732,7 +736,8 @@ var body: some View {
                         
                         VStack {
                             
-                            if let profileImageURL = firebase.userProfileImageURL {
+                            if let profileImageURL = profileImageURL {
+                                
                                 AsyncImage(url: profileImageURL) { phase in
                                     switch phase {
                                     case .success(let image):
@@ -754,6 +759,7 @@ var body: some View {
                                     }
                                 }
                             } else {
+                                
                                 Image(systemName: "person.crop.circle.fill")
                                     .resizable()
                                     .frame(width: 30, height: 30)
@@ -948,6 +954,8 @@ var body: some View {
                 }
             }
             .onAppear {
+                
+                fetchProfileImage(for: userID)
                 
                 let currentUserId = Auth.auth().currentUser?.uid
                 isCurrentUser = userID == currentUserId
