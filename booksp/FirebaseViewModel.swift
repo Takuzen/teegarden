@@ -53,7 +53,7 @@ class FirebaseViewModel: ObservableObject {
                     }
                 }
             } else {
-                print("User document does not exist")
+                
             }
         }
     }
@@ -62,9 +62,9 @@ class FirebaseViewModel: ObservableObject {
         let db = Firestore.firestore()
         db.collection("users").document(userID).updateData(["introduction": introduction]) { error in
             if let error = error {
-                print("Error updating introduction: \(error.localizedDescription)")
+                
             } else {
-                print("Introduction updated successfully")
+                
             }
         }
     }
@@ -82,7 +82,7 @@ class FirebaseViewModel: ObservableObject {
     func fetchPostsWithMetadata(completion: @escaping () -> Void) {
         db.collection("posts").order(by: "timestamp", descending: true).getDocuments { (querySnapshot, err) in
             if let err = err {
-                print("Error getting documents: \(err)")
+                
                 return
             } else {
                 var tempPosts: [PostWithMetadata] = []
@@ -95,11 +95,11 @@ class FirebaseViewModel: ObservableObject {
                     let videoURL = data["videoURL"] as? String ?? ""
                     let fileType = data["fileType"] as? String ?? ""
                     
-                    print("Fetching user data for userID: \(userID)")
+                    
 
                     self.db.collection("users").document(userID).getDocument { (userDoc, userErr) in
                         if let userErr = userErr {
-                            print("Error fetching user: \(userErr)")
+                            
                         } else if let userDoc = userDoc, userDoc.exists {
                             let userData = userDoc.data()
                             let username = userData?["username"] as? String ?? "Unknown"
@@ -112,7 +112,7 @@ class FirebaseViewModel: ObservableObject {
                             }
                             completion()
                         } else {
-                            print("User document does not exist for userID: \(userID)")
+                            
                         }
                     }
                 }
@@ -136,22 +136,22 @@ class FirebaseViewModel: ObservableObject {
                 "fileType": fileType
             ] as [String : Any]
             
-            print("Attempting to write to userId: \(userID)")
-            print("Authenticated user's uid: \(Auth.auth().currentUser?.uid ?? "No Auth user found")")
+            
+            
             
             userPostRef.setData(postData) { error in
                 if let error = error {
-                    print("Error adding post to user's collection: \(error.localizedDescription)")
+                    
                 } else {
-                    print("Post added to user's collection successfully")
+                    
                     
                     let globalPostData = postData.merging(["userID": userID]) { (current, _) in current }
                     
                     globalPostRef.setData(globalPostData) { error in
                         if let error = error {
-                            print("Error adding post to global posts collection: \(error.localizedDescription)")
+                            
                         } else {
-                            print("Post added to global posts collection successfully")
+                            
                         }
                     }
                 }
@@ -166,25 +166,25 @@ class FirebaseViewModel: ObservableObject {
             thumbnailStorageRef = storageRef.child("SpatialFiles/\(fileType)/\(uniqueID)/\(uniqueID)_thumbnail.jpg")
         }
         
-        print("[PONG] About to upload the file")
+        
         
         if FileManager.default.fileExists(atPath: fileURL.path) {
-            print("File exists and is ready for upload.")
+            
         } else {
-            print("File does not exist at path: \(fileURL.path)")
+            
         }
         
-        print("Is user authenticated: \(Auth.auth().currentUser != nil)")
+        
         
         let uploadTaskFile = fileStorageRef.putFile(from: fileURL, metadata: nil) { metadata, error in
             if let error = error {
-                print("Failed to upload file: \(error.localizedDescription)")
+                
                 completion(nil, nil)
                 return
             }
             
             guard metadata != nil else {
-                print("Upload failed, metadata is nil.")
+                
                 completion(nil, nil)
                 return
             }
@@ -193,14 +193,14 @@ class FirebaseViewModel: ObservableObject {
                 if let thumbnailURL = thumbnailURL, let thumbnailStorageRef = thumbnailStorageRef {
                     let uploadTaskThumbnail = thumbnailStorageRef.putFile(from: thumbnailURL, metadata: nil) { metadata, error in
                         guard metadata != nil else {
-                            print("Failed to upload thumbnail: \(error?.localizedDescription ?? "Unknown error")")
+                            
                             completion(fileDownloadURL, nil)
                             return
                         }
                         
                         thumbnailStorageRef.downloadURL { thumbnailDownloadURL, error in
                             guard let thumbnailDownloadURL = thumbnailDownloadURL else {
-                                print("Thumbnail URL not found: \(error?.localizedDescription ?? "Unknown error")")
+                                
                                 completion(fileDownloadURL, nil)
                                 return
                             }
@@ -231,33 +231,32 @@ class FirebaseViewModel: ObservableObject {
                     completion(nil)
                 }
             } else {
-                print("User does not exist")
+                
                 completion(nil)
             }
         }
     }
 
-    func fetchUserProfile() {
-        guard let userId = Auth.auth().currentUser?.uid else { return }
+    func fetchUserProfile(userID: String) {
         let db = Firestore.firestore()
 
-        db.collection("users").document(userId).getDocument { (document, error) in
+        db.collection("users").document(userID).getDocument { (document, error) in
             if let document = document, document.exists {
                 let data = document.data()
-                if let profileImageURLString = data?["profileImageURL"] as? String,
-                   let profileImageURL = URL(string: profileImageURLString),
+                if let email = data?["email"] as? String,
                    let username = data?["username"] as? String {
                     DispatchQueue.main.async {
-                        self.userProfileImageURL = profileImageURL
+                        self.mail = email
                         self.username = username
-                        self.userID = userId
+                        self.userID = userID
                     }
                 }
             } else {
-                print("User does not exist")
+                
             }
         }
     }
+
     
     func updateUserProfileImageURL(userID: String, imageURL: URL, completion: @escaping (Error?) -> Void) {
         let databaseRef = Firestore.firestore().collection("users").document(userID)
@@ -270,7 +269,7 @@ class FirebaseViewModel: ObservableObject {
     func fetchUserPosts(userID: String) {
         
         guard !userID.isEmpty else {
-            print("Error: UserID is empty.")
+            
             return
         }
         
@@ -279,14 +278,14 @@ class FirebaseViewModel: ObservableObject {
 
         postsRef.getDocuments { (querySnapshot, error) in
             if let error = error {
-                print("Error getting posts: \(error.localizedDescription)")
+                
                 return
             }
 
             var tempPosts: [Post] = []
             for document in querySnapshot!.documents {
                 let data = document.data()
-                print("Fetched post data: \(data)")
+                
                 
                 let thumbnailURL = (data["thumbnailURL"] as? String).flatMap(URL.init)
                 let videoURL = (data["videoURL"] as? String).flatMap(URL.init)
@@ -301,12 +300,12 @@ class FirebaseViewModel: ObservableObject {
                     let post = Post(id: document.documentID, creatorUserID: userID, videoURL: videoURLString, thumbnailURL: thumbnailURL, caption: caption, creationDate: creationDate, fileType: fileType, username: username)
                     tempPosts.append(post)
                     
-                    print("Appended post: \(post)")
+                    
                 }
             }
             DispatchQueue.main.async {
                 self.userPosts = tempPosts
-                print("Updated userPosts: \(self.userPosts)")
+                
             }
         }
     }
@@ -332,7 +331,7 @@ class FirebaseViewModel: ObservableObject {
                         lhsDate = try lhs.resourceValues(forKeys: [.creationDateKey]).creationDate ?? Date.distantPast
                         rhsDate = try rhs.resourceValues(forKeys: [.creationDateKey]).creationDate ?? Date.distantPast
                     } catch {
-                        print("Error sorting files: \(error)")
+                        
                         return false
                     }
                     return lhsDate < rhsDate
@@ -348,9 +347,7 @@ class FirebaseViewModel: ObservableObject {
                     }
                 }
             }
-        } catch {
-            print("Error checking and cleaning storage: \(error)")
-        }
+        } catch {}
     }
 
     
