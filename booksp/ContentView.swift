@@ -320,10 +320,23 @@ struct DetailView: View {
     let thumbnailURL: URL?
     let localFileURL: URL
     let caption: String
+    let timer = Timer.publish(every: 10, on: .main, in: .common).autoconnect()
     
     @ObservedObject var firebaseViewModel: FirebaseViewModel
     
     @State private var showSpatialPlayer = false
+    @State private var profileImageURL: URL?
+    
+    func fetchProfileImage(for userID: String) {
+        print("Fetching profile image for user ID: \(userID)")
+        firebaseViewModel.fetchProfileImageURL(for: userID) { url in
+            if let url = url {
+                withAnimation {
+                    profileImageURL = url // Update the single URL state
+                }
+            }
+        }
+    }
     
     var body: some View {
         
@@ -331,7 +344,7 @@ struct DetailView: View {
             
             NavigationLink(destination: userView(userID: userID, username: username)) {
                 HStack {
-                    if let profileImageURL = firebaseViewModel.userProfileImageURL {
+                    if let profileImageURL = profileImageURL {
                         AsyncImage(url: profileImageURL) { phase in
                             switch phase {
                             case .success(let image):
@@ -421,7 +434,16 @@ struct DetailView: View {
                     
                 }
             }
-            
+            .onAppear {
+                fetchProfileImage(for: userID)
+            }
+            .onReceive(timer) { _ in
+                firebaseViewModel.fetchPostsWithMetadata {
+                    for post in firebaseViewModel.postsWithMetadata {
+                        fetchProfileImage(for: post.userID)
+                    }
+                }
+            }
         }
     }
 }
@@ -430,9 +452,22 @@ struct homeView: View {
     @ObservedObject var firebaseViewModel = FirebaseViewModel()
     @State private var localFileURLs: [String: URL] = [:]
     @State private var fileURLs: [URL] = []
+    @State private var profileImageURLs: [String: URL] = [:]
+    let dispatchGroup = DispatchGroup()
     
     let timer = Timer.publish(every: 10, on: .main, in: .common).autoconnect()
     let customColor = Color(red: 0.988, green: 0.169, blue: 0.212)
+    
+    func fetchProfileImage(for userID: String) {
+        print("Fetching profile image for user ID: \(userID)")
+        firebaseViewModel.fetchProfileImageURL(for: userID) { url in
+            if let url = url {
+                withAnimation {
+                    profileImageURLs[userID] = url
+                }
+            }
+        }
+    }
     
     var body: some View {
         GeometryReader { geometry in
@@ -462,14 +497,16 @@ struct homeView: View {
                         let rows = [GridItem(.flexible(minimum: 10, maximum: .infinity), spacing: 20)]
                         
                         LazyHGrid(rows: rows, spacing: 20) {
+                            
                             ForEach(firebaseViewModel.postsWithMetadata, id: \.id) { postWithMeta in
+                                
                                 NavigationLink(destination: DetailView(postID: postWithMeta.id, userID: postWithMeta.userID, username: postWithMeta.username, thumbnailURL: URL(string: postWithMeta.thumbnailURL ?? ""), localFileURL: localFileURLs[postWithMeta.id] ?? URL(fileURLWithPath: ""), caption: postWithMeta.caption ,firebaseViewModel: firebaseViewModel)) {
                                     
                                     VStack {
                                         
                                         NavigationLink(destination: userView(userID: postWithMeta.userID, username: postWithMeta.username)) {
                                             HStack {
-                                                if let profileImageURL = firebaseViewModel.userProfileImageURL {
+                                                if let profileImageURL = profileImageURLs[postWithMeta.userID] {
                                                     AsyncImage(url: profileImageURL) { phase in
                                                         switch phase {
                                                         case .success(let image):
@@ -488,7 +525,9 @@ struct homeView: View {
                                                             EmptyView()
                                                         }
                                                     }
+                                                    
                                                 } else {
+                                                    
                                                     Image(systemName: "person.crop.circle.fill")
                                                         .resizable()
                                                         .frame(width: 30, height: 30)
@@ -606,11 +645,19 @@ struct homeView: View {
                     .frame(width: geometry.size.width, height: geometry.size.height / 3 * 2 + 100)
                     .onAppear {
                         print("Fetching posts with metadata...")
-                        firebaseViewModel.fetchPostsWithMetadata()
-                        firebaseViewModel.fetchUserProfile()
+                        firebaseViewModel.fetchPostsWithMetadata {
+                            for post in firebaseViewModel.postsWithMetadata {
+                                print("Post user ID: \(post.userID)")
+                                fetchProfileImage(for: post.userID)
+                            }
+                        }
                     }
                     .onReceive(timer) { _ in
-                        firebaseViewModel.fetchPostsWithMetadata()
+                        firebaseViewModel.fetchPostsWithMetadata {
+                            for post in firebaseViewModel.postsWithMetadata {
+                                fetchProfileImage(for: post.userID)
+                            }
+                        }
                     }
                     .padding(.leading, 30)
                     .padding(.top, -30)
@@ -790,7 +837,7 @@ var body: some View {
                                     .cornerRadius(8)
                             }
                         }
-                        .background(Color.red.opacity(0.3))
+                        
                     } else {
                         
                         ScrollView(.horizontal, showsIndicators: false) {

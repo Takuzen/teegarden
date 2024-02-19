@@ -79,7 +79,7 @@ class FirebaseViewModel: ObservableObject {
         var userID: String
     }
 
-    func fetchPostsWithMetadata() {
+    func fetchPostsWithMetadata(completion: @escaping () -> Void) {
         db.collection("posts").order(by: "timestamp", descending: true).getDocuments { (querySnapshot, err) in
             if let err = err {
                 print("Error getting documents: \(err)")
@@ -110,6 +110,7 @@ class FirebaseViewModel: ObservableObject {
                             DispatchQueue.main.async {
                                 self.postsWithMetadata = tempPosts
                             }
+                            completion()
                         } else {
                             print("User document does not exist for userID: \(userID)")
                         }
@@ -215,6 +216,27 @@ class FirebaseViewModel: ObservableObject {
         }
     }
 
+    func fetchProfileImageURL(for userID: String, completion: @escaping (URL?) -> Void) {
+        let db = Firestore.firestore()
+
+        db.collection("users").document(userID).getDocument { (document, error) in
+            if let document = document, document.exists {
+                let data = document.data()
+                if let profileImageURLString = data?["profileImageURL"] as? String,
+                   let profileImageURL = URL(string: profileImageURLString) {
+                    DispatchQueue.main.async {
+                        completion(profileImageURL)
+                    }
+                } else {
+                    completion(nil)
+                }
+            } else {
+                print("User does not exist")
+                completion(nil)
+            }
+        }
+    }
+
     func fetchUserProfile() {
         guard let userId = Auth.auth().currentUser?.uid else { return }
         let db = Firestore.firestore()
@@ -246,6 +268,12 @@ class FirebaseViewModel: ObservableObject {
     }
     
     func fetchUserPosts(userID: String) {
+        
+        guard !userID.isEmpty else {
+            print("Error: UserID is empty.")
+            return
+        }
+        
         let postsRef = db.collection("users").document(userID).collection("posts")
             .order(by: "timestamp", descending: true)
 
