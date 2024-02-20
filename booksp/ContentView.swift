@@ -908,22 +908,26 @@ struct userView: View {
                                         EmptyView()
                                     }
                                 }
+                                
+                                if userID == Auth.auth().currentUser?.uid {
+                                    Button("Upload Profile Image") {
+                                        showingImagePicker = true
+                                    }
+                                }
+                                
                             } else {
                                 
                                 Image(systemName: "person.crop.circle.fill")
                                     .resizable()
                                     .frame(width: 30, height: 30)
                                     .clipShape(Circle())
-                                Button("Upload Profile Image") {
-                                    showingImagePicker = true
-                                }
                             }
                             
                             Text(username)
                                 .bold()
                                 .padding()
                             
-                            if firebase.isLoggedIn && userID == Auth.auth().currentUser?.uid {} else {
+                            if userID == Auth.auth().currentUser?.uid {} else {
                                 
                                 Button(action: {
                                     UIPasteboard.general.string = firebase.mail
@@ -944,7 +948,7 @@ struct userView: View {
                         
                         ZStack(alignment: .topLeading) {
                             if firebase.introductionText.isEmpty && !isEditingIntroduction {
-                                if firebase.isLoggedIn && userID == Auth.auth().currentUser?.uid {
+                                if userID == Auth.auth().currentUser?.uid {
                                     Text("Write something about yourself...")
                                         .foregroundColor(.gray)
                                         .padding(.leading, 5)
@@ -968,25 +972,25 @@ struct userView: View {
                                     Text(firebase.introductionText)
                                         .padding(4)
                                 }
-
-                                if firebase.isLoggedIn && userID == Auth.auth().currentUser?.uid {
-
+                                    
+                                if userID == Auth.auth().currentUser?.uid {
+                                    
                                     Button(action: {
-                                       if isEditingIntroduction {
-                                           firebase.updateIntroductionText(userID: userID, introduction: newIntroductionText)
-                                       } else {
-                                           newIntroductionText = firebase.introductionText
-                                       }
-                                       isEditingIntroduction.toggle()
-                                   }) {
-                                       Text(isEditingIntroduction ? "Save" : "Edit")
-                                   }
-                                   .padding()
-                                   .padding(.top, 20)
-                                   .padding(.leading, 20)
+                                        if isEditingIntroduction {
+                                            firebase.updateIntroductionText(userID: userID, introduction: newIntroductionText)
+                                        } else {
+                                            newIntroductionText = firebase.introductionText
+                                        }
+                                        isEditingIntroduction.toggle()
+                                    }) {
+                                        Text(isEditingIntroduction ? "Save" : "Edit")
+                                    }
+                                    .padding()
+                                    .padding(.top, 20)
+                                    .padding(.leading, 20)
                                     
                                 } else {}
-                                    
+                                
                             }
                         }
                         .padding()
@@ -1099,7 +1103,7 @@ struct userView: View {
                     
                     VStack {
                         
-                        if firebase.isLoggedIn && userID == Auth.auth().currentUser?.uid {
+                        if userID == Auth.auth().currentUser?.uid {
                             
                             Text("We started to toddle only recently.")
                                 .padding(.top, 20)
@@ -1128,7 +1132,7 @@ struct userView: View {
                 .padding(.bottom, 30)
                 .padding(.leading, 30)
                 .padding(.trailing, 30)
-                .navigationTitle(firebase.isLoggedIn && userID == Auth.auth().currentUser?.uid ? "My Space" : "The Creator Profile")
+                .navigationTitle(userID == Auth.auth().currentUser?.uid ? "My Space" : "The Creator Profile")
                 .navigationBarTitleDisplayMode(.inline)
                 .sheet(isPresented: $showingImagePicker, onDismiss: handleImageSelectionForUpload) {
                     ImagePicker(selectedImage: $inputImage)
