@@ -428,6 +428,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = booksp/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Teegarden;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.video";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -456,6 +457,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = booksp/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Teegarden;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.video";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -552,7 +554,7 @@
 			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
 			requirement = {
 				kind = exactVersion;
-				version = 10.20.0;
+				version = 10.21.0;
 			};
 		};
 		E9C9D6ED2AC8641600DA35EB /* XCRemoteSwiftPackageReference "SwiftyJSON" */ = {
