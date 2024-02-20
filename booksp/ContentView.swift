@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 extension UTType {
     static let reality = UTType(exportedAs: "com.apple.reality")
 }
+
 import FirebaseAuth
 import RealityKit
 
@@ -57,7 +58,7 @@ struct ContentView: View {
                     if tab == .home {
                         HomeViewWrapper()
                     } else if tab == .profile && !firebase.isLoggedIn {
-                        logInViewToPost()
+                        logInViewToProfile()
                             .environmentObject(firebase)
                     } else if tab == .profile && firebase.isLoggedIn {
                         UserViewWrapper()
@@ -196,6 +197,8 @@ struct ContentView: View {
                         }
                         
                         Text(firebase.errorMessage)
+                            .padding(.top, 3)
+                            .foregroundColor(Color.red)
                         
                         NavigationLink(destination: SignUpView()) {
                             Text("Create an account?")
@@ -208,6 +211,7 @@ struct ContentView: View {
         
     }
     
+    /*
     struct logInViewToPost: View {
         
         @EnvironmentObject var firebase: FirebaseViewModel
@@ -269,7 +273,8 @@ struct ContentView: View {
             }
         }
     }
-
+     */
+    
     struct SignUpView: View {
         @EnvironmentObject var firebase: FirebaseViewModel
         @State private var showingSuccessAlert = false
@@ -321,6 +326,8 @@ struct ContentView: View {
                     }
 
                     Text(firebase.errorMessage)
+                        .padding(.top, 3)
+                        .foregroundColor(Color.red)
 
                     NavigationLink(destination: logInViewToProfile()) {
                         Text("Already have our Tee account?")
@@ -349,7 +356,6 @@ struct DetailView: View {
     @State private var profileImageURL: URL?
     
     func fetchProfileImage(for userID: String) {
-        print("Fetching profile image for user ID: \(userID)")
         firebaseViewModel.fetchProfileImageURL(for: userID) { url in
             if let url = url {
                 withAnimation {
@@ -476,7 +482,6 @@ struct DetailViewFromProfile: View {
     @State private var profileImageURL: URL?
     
     func fetchProfileImage(for userID: String) {
-        print("Fetching profile image for user ID: \(userID)")
         firebaseViewModel.fetchProfileImageURL(for: userID) { url in
             if let url = url {
                 withAnimation {
@@ -589,8 +594,6 @@ struct DetailViewFromProfile: View {
     }
 }
 
-
-
 struct homeView: View {
     @ObservedObject var firebaseViewModel = FirebaseViewModel()
     @State private var localFileURLs: [String: URL] = [:]
@@ -602,7 +605,6 @@ struct homeView: View {
     let customColor = Color(red: 0.988, green: 0.169, blue: 0.212)
     
     func fetchProfileImage(for userID: String) {
-        print("Fetching profile image for user ID: \(userID)")
         firebaseViewModel.fetchProfileImageURL(for: userID) { url in
             if let url = url {
                 withAnimation {
@@ -857,9 +859,9 @@ struct userView: View {
     @State private var newIntroductionText = ""
     @State private var localFileURLs: [String: URL] = [:]
     @State private var profileImageURL: URL?
+    @State private var emailCopied = false
     
     func fetchProfileImage(for userID: String) {
-        print("Fetching profile image for user ID: \(userID)")
         firebase.fetchProfileImageURL(for: userID) { url in
             if let url = url {
                 withAnimation {
@@ -921,6 +923,7 @@ struct userView: View {
                                     .resizable()
                                     .frame(width: 30, height: 30)
                                     .clipShape(Circle())
+                                
                             }
                             
                             Text(username)
@@ -931,6 +934,11 @@ struct userView: View {
                                 
                                 Button(action: {
                                     UIPasteboard.general.string = firebase.mail
+                                    emailCopied = true
+                                    
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                                    emailCopied = false
+                                }
                                 }) {
                                     HStack {
                                         Text("Reply")
@@ -939,6 +947,12 @@ struct userView: View {
                                     .padding()
                                 }
                                 .buttonStyle(PlainButtonStyle())
+                                
+                                if emailCopied {
+                                    Text("Successfully copied the email!")
+                                        .foregroundColor(.green)
+                                        .transition(.opacity)
+                                }
                                 
                             }
                             
@@ -1392,6 +1406,7 @@ struct Add3DModelView: View {
     @State private var showErrorAlert = false
     @State private var errorMessage = ""
     @State private var thumbnailURL: URL?
+    @State private var isFileSizeLimitExceeded = false
     
     @Environment(\.presentationMode) var presentationMode
     
@@ -1416,13 +1431,30 @@ struct Add3DModelView: View {
     }
     
     func handleCubeSelection(urls: [URL], shouldOverwrite: Bool = false) {
-        print("handleModelSelection called with URLs: \(urls)")
+        
         guard let firstModelURL = urls.first else {
-            print("No URL found in the array.")
             return
         }
-        print("First model URL: \(firstModelURL)")
         
+        do {
+            let fileAttributes = try FileManager.default.attributesOfItem(atPath: firstModelURL.path)
+            if let fileSize = fileAttributes[.size] as? NSNumber, fileSize.intValue <= 104857600 {
+                // File size is within the limit, proceed with the rest of the function
+            } else {
+                // File size exceeds the limit, show an alert
+                DispatchQueue.main.async {
+                    self.isFileSizeLimitExceeded = true // Set the state variable to show the alert
+                }
+                return
+            }
+        } catch {
+            // Error while getting file attributes, show an alert
+            DispatchQueue.main.async {
+                self.showAlertWith(message: "Failed to get file attributes.")
+            }
+            return
+        }
+
         let canAccess = firstModelURL.startAccessingSecurityScopedResource()
         print("Can access firstModelURL: \(canAccess)")
         
@@ -1660,12 +1692,10 @@ struct Add3DModelView: View {
                             Button("Post →") {
                                 isPostBtnClicked = true
                                 isUploading = true
-                                print("[PONG] Post button got clicked.")
                                 if let confirmedMainURL = confirmedModelURL {
                                     let fileType = confirmedMainURL.pathExtension.lowercased()
                                     let thumbnailURL = (fileType == "mov") ? confirmedThumbnailURL : nil
                                     
-                                    print("[PONG] confirmedMainURL is passed.")
                                     firebase.uploadFileAndThumbnail(fileURL: confirmedMainURL, thumbnailURL: thumbnailURL, fileType: fileType) { fileDownloadURL, thumbnailDownloadURL in
                                         
                                         guard let fileDownloadURL = fileDownloadURL else {
@@ -1686,9 +1716,6 @@ struct Add3DModelView: View {
                                         
                                         let thumbnailURLString = thumbnailDownloadURL?.absoluteString ?? ""
                                         
-                                        print("[PONG] About to run createPost function.")
-                                        print("[PONG] caption is: \(captionText)")
-                                        
                                         firebase.createPost(forUserID: userID, videoURL: fileDownloadURL.absoluteString, thumbnailURL: thumbnailURLString, caption: captionText, fileType: fileType)
                                         
                                         DispatchQueue.main.async {
@@ -1698,7 +1725,6 @@ struct Add3DModelView: View {
                                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                                                 self.isPostingSuccessful = true
                                                 self.clearTemporaryModelFilesFolder()
-                                                print("[PONG] Post success!")
                                             }
                                             
                                         }
@@ -1734,8 +1760,10 @@ struct Add3DModelView: View {
                 } else {
                     
                     VStack {
+                        
                         Text("No model selected")
                             .padding()
+                        
                         Button("Choose A Spatial File") {
                             isPickerPresented = true
                         }
@@ -1754,7 +1782,6 @@ struct Add3DModelView: View {
                                 showAlert = true
                             }
                         }
-                        
                         .alert(
                             Text("The file already exists."),
                             isPresented: $alertViewModel.showOverwriteAlert
@@ -1778,6 +1805,9 @@ struct Add3DModelView: View {
                                 confirmedThumbnailURL: $confirmedThumbnailURL
                             )
                         }
+                        
+                        Text("We accept a MOV/MV-HEVC, USDZ, or REALITY File each post.")
+                            .padding(.top, 3)
                         
                         ZStack(alignment: .topLeading) {
                             if captionText.isEmpty && !isEditing {
@@ -1826,6 +1856,26 @@ struct Add3DModelView: View {
                 }
             )
         }
+        
+        .alert(isPresented: $isFileSizeLimitExceeded) {
+            Alert(
+                title: Text("File Size Limit Exceeded"),
+                message: Text("The selected file exceeds the 100MB limit. Please choose a smaller file."),
+                dismissButton: .default(Text("OK")) {
+                }
+            )
+        }
+        
+        .alert(isPresented: $showAlert) {
+            Alert(
+                title: Text(alertMessage),
+                message: Text(""),
+                dismissButton: .default(Text("OK")) {
+                }
+            )
+        }
+        
+        
         .navigationTitle("Post")
     }
 }
