@@ -113,7 +113,13 @@ struct ContentView: View {
             NavigationStack {
                 userView(userID: Auth.auth().currentUser?.uid ?? "", username: firebase.username)
             }
-
+            .onAppear{
+                if let currentUserID = Auth.auth().currentUser?.uid {
+                    firebase.fetchUserProfile(userID: currentUserID)
+                } else {
+                    print("Error: currentUserID is nil")
+                }
+            }
         }
     }
         
