@@ -24,7 +24,6 @@ struct ContentView: View {
     @Environment(ViewModel.self) private var model
     
     @State private var defaultSelectionForUserMenu: String? = "All"
-    @State private var isLoggedIn = false
     @State private var selectedTab: TabItem = .home
     
     @StateObject var firebase = FirebaseViewModel()
@@ -58,7 +57,7 @@ struct ContentView: View {
                     if tab == .home {
                         HomeViewWrapper()
                     } else if tab == .profile && !firebase.isLoggedIn {
-                        logInViewToProfile()
+                        LogInView()
                             .environmentObject(firebase)
                     } else if tab == .profile && firebase.isLoggedIn {
                         UserViewWrapper()
@@ -112,7 +111,7 @@ struct ContentView: View {
         var body: some View {
             
             NavigationStack {
-                userView(userID: Auth.auth().currentUser?.uid ?? "", username: firebase.username)
+                UserView(userID: FirebaseViewModel.shared.userID, username: FirebaseViewModel.shared.username)
             }
             .onAppear{
                 if let currentUserID = Auth.auth().currentUser?.uid {
@@ -145,58 +144,61 @@ struct ContentView: View {
             Text("takuzen0430@gmail.com")
         }
     }
-    // MARK: - LogInView
-    struct logInViewToProfile: View {
+    // MARK: - AuthView
+    struct LogInView: View {
         
-        @EnvironmentObject var firebase: FirebaseViewModel
-        
-        @State private var showingSuccessAlert = false
-        @State private var successMessage = "Signed In Successfully."
-        @State private var navigateToUserHome = false
+        @State private var email: String = ""
+        @State private var password: String = ""
+        @State private var authSuccessMessage = ""
+        @State private var authFailureMessage = ""
+        @State private var showSuccessAlert = false
         
         var body: some View {
+            
             NavigationStack {
+                
                 VStack {
+                    
                     Text("Authentication")
                     
-                    TextField("Email", text: $firebase.mail)
+                    TextField("Email", text: $email)
                         .keyboardType(.emailAddress)
                         .autocapitalization(.none)
                         .padding()
                         .frame(width: 250.0, height: 100.0)
                     
-                    SecureField("Password", text: $firebase.password)
+                    SecureField("Password", text: $password)
                         .padding()
                         .frame(width: 250.0, height: 100.0)
                     
                     VStack {
                         Button(action: {
-                            firebase.login { success, message in
+                            FirebaseViewModel.shared.login(email: email, password: password) { success, message in
                                 if success {
                                     print("enter success logic")
-                                    successMessage = message
-                                    showingSuccessAlert = true
-                                    firebase.isLoggedIn = true
+                                    authSuccessMessage = message
+                                    showSuccessAlert = true
+                                    FirebaseViewModel.shared.isLoggedIn = true
+                                    FirebaseViewModel.shared.mail = ""
+                                    FirebaseViewModel.shared.password = ""
                                 } else {
-                                    firebase.errorMessage = message
+                                    authFailureMessage = message
                                 }
                             }
                         }) {
-                            Text("Sign in →")
-                        }
-                        .alert(
-                            "Success",
-                            isPresented: $showingSuccessAlert,
-                            presenting: successMessage
-                        ) { _ in
-                            Button("OK") {
-                                navigateToUserHome = true
-                            }
-                        } message: { successMessage in
-                            Text(successMessage)
+                            Text("Log in →")
                         }
                         
-                        Text(firebase.errorMessage)
+                        .actionSheet(isPresented: $showSuccessAlert) {
+                            ActionSheet(
+                                title: Text("Successfully Logged In!"),
+                                buttons: [
+                                    .default(Text("OK")) {}
+                                ]
+                            )
+                        }
+                        
+                        Text(authFailureMessage)
                             .padding(.top, 3)
                             .foregroundColor(Color.red)
                         
@@ -210,70 +212,6 @@ struct ContentView: View {
         }
         
     }
-    
-    /*
-    struct logInViewToPost: View {
-        
-        @EnvironmentObject var firebase: FirebaseViewModel
-        
-        @State private var showingSuccessAlert = false
-        @State private var successMessage = "Signed In Successfully."
-        @State private var navigateToUserHome = false
-        
-        var body: some View {
-            NavigationStack() {
-                VStack {
-                    Text("Authentication")
-                    
-                    TextField("Email", text: $firebase.mail)
-                        .keyboardType(.emailAddress)
-                        .autocapitalization(.none)
-                        .padding()
-                        .frame(width: 250.0, height: 100.0)
-                    
-                    SecureField("Password", text: $firebase.password)
-                        .padding()
-                        .frame(width: 250.0, height: 100.0)
-                    
-                    VStack {
-                        Button(action: {
-                            firebase.login { success, message in
-                                if success {
-                                    print("enter success logic")
-                                    successMessage = message
-                                    showingSuccessAlert = true
-                                    print("showingSuccessAlert is toggled")
-                                    firebase.isLoggedIn = true
-                                } else {
-                                    firebase.errorMessage = message                                }
-                            }
-                        }) {
-                            Text("Sign in →")
-                        }
-                        .alert(
-                            "Success",
-                            isPresented: $showingSuccessAlert,
-                            presenting: successMessage
-                        ) { _ in
-                            Button("OK") {
-                                navigateToUserHome = true
-                            }
-                        } message: { successMessage in
-                            Text(successMessage)
-                        }
-                        
-                        Text(firebase.errorMessage)
-                        
-                        NavigationLink(destination: SignUpView()) {
-                            Text("Create an account?")
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                    }
-                }
-            }
-        }
-    }
-     */
     
     struct SignUpView: View {
         @EnvironmentObject var firebase: FirebaseViewModel
@@ -329,8 +267,8 @@ struct ContentView: View {
                         .padding(.top, 3)
                         .foregroundColor(Color.red)
 
-                    NavigationLink(destination: logInViewToProfile()) {
-                        Text("Already have our Tee account?")
+                    NavigationLink(destination: LogInView()) {
+                        Text("Already have our account?")
                     }
                     .buttonStyle(PlainButtonStyle())
                 }
@@ -369,7 +307,7 @@ struct DetailView: View {
         
         VStack {
             
-            NavigationLink(destination: userView(userID: userID, username: username)) {
+            NavigationLink(destination: UserView(userID: userID, username: username)) {
                 HStack {
                     if let profileImageURL = profileImageURL {
                         AsyncImage(url: profileImageURL) { phase in
@@ -495,7 +433,7 @@ struct DetailViewFromProfile: View {
         
         VStack {
             
-            NavigationLink(destination: userView(userID: userID, username: username)) {
+            NavigationLink(destination: UserView(userID: userID, username: username)) {
                 HStack {
                     if let profileImageURL = profileImageURL {
                         AsyncImage(url: profileImageURL) { phase in
@@ -649,7 +587,7 @@ struct homeView: View {
                                     
                                     VStack {
                                         
-                                        NavigationLink(destination: userView(userID: postWithMeta.userID, username: postWithMeta.username)) {
+                                        NavigationLink(destination: UserView(userID: postWithMeta.userID, username: postWithMeta.username)) {
                                             HStack {
                                                 if let profileImageURL = profileImageURLs[postWithMeta.userID] {
                                                     AsyncImage(url: profileImageURL) { phase in
@@ -846,342 +784,6 @@ struct ImagePicker: UIViewControllerRepresentable {
         
         func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
             parent.presentationMode.wrappedValue.dismiss()
-        }
-    }
-}
-
-struct userView: View {
-    @EnvironmentObject var firebase: FirebaseViewModel
-    @State private var showingImagePicker = false
-    @State private var inputImage: UIImage?
-    @State private var posts: [Post] = []
-    @State private var isEditingIntroduction: Bool = false
-    @State private var newIntroductionText = ""
-    @State private var localFileURLs: [String: URL] = [:]
-    @State private var profileImageURL: URL?
-    @State private var emailCopied = false
-    
-    func fetchProfileImage(for userID: String) {
-        firebase.fetchProfileImageURL(for: userID) { url in
-            if let url = url {
-                withAnimation {
-                    profileImageURL = url
-                }
-            }
-        }
-    }
-    
-    var userID: String
-    var username: String
-
-    var body: some View {
-        
-        NavigationStack {
-            
-            ScrollView(.vertical, showsIndicators: true) {
-                
-                VStack {
-                    
-                    Spacer()
-                    
-                    HStack {
-                        
-                        VStack {
-                            
-                            if let profileImageURL = profileImageURL {
-                                
-                                AsyncImage(url: profileImageURL) { phase in
-                                    switch phase {
-                                    case .success(let image):
-                                        image.resizable()
-                                            .aspectRatio(contentMode: .fill)
-                                            .frame(width: 60, height: 60)
-                                            .clipShape(Circle())
-                                            .padding()
-                                    case .failure(_):
-                                        Image(systemName: "person.crop.circle.fill")
-                                            .resizable()
-                                            .frame(width: 40, height: 40)
-                                            .clipShape(Circle())
-                                            .padding()
-                                    case .empty:
-                                        ProgressView()
-                                    @unknown default:
-                                        EmptyView()
-                                    }
-                                }
-                                
-                                if userID == Auth.auth().currentUser?.uid {
-                                    Button("Upload Profile Image") {
-                                        showingImagePicker = true
-                                    }
-                                }
-                                
-                            } else {
-                                
-                                Image(systemName: "person.crop.circle.fill")
-                                    .resizable()
-                                    .frame(width: 30, height: 30)
-                                    .clipShape(Circle())
-                                
-                            }
-                            
-                            Text(username)
-                                .bold()
-                                .padding()
-                            
-                            if userID == Auth.auth().currentUser?.uid {} else {
-                                
-                                Button(action: {
-                                    UIPasteboard.general.string = firebase.mail
-                                    emailCopied = true
-                                    
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                                    emailCopied = false
-                                }
-                                }) {
-                                    HStack {
-                                        Text("Reply")
-                                        Image(systemName: "arrowshape.turn.up.right")
-                                    }
-                                    .padding()
-                                }
-                                .buttonStyle(PlainButtonStyle())
-                                
-                                if emailCopied {
-                                    Text("Successfully copied the email!")
-                                        .foregroundColor(.green)
-                                        .transition(.opacity)
-                                }
-                                
-                            }
-                            
-                            Spacer()
-                            
-                        }
-                        
-                        ZStack(alignment: .topLeading) {
-                            if firebase.introductionText.isEmpty && !isEditingIntroduction {
-                                if userID == Auth.auth().currentUser?.uid {
-                                    Text("Write something about yourself...")
-                                        .foregroundColor(.gray)
-                                        .padding(.leading, 5)
-                                        .padding(.top, 8)
-                                } else {
-                                    Text("No introduction so far.")
-                                        .foregroundColor(.gray)
-                                        .padding(.leading, 5)
-                                        .padding(.top, 8)
-                                }
-                            }
-                            
-                            VStack {
-                                if isEditingIntroduction {
-                                    TextEditor(text: $newIntroductionText)
-                                        .padding(4)
-                                        .frame(maxHeight: .infinity)
-                                        .border(Color(UIColor.separator), width: 4)
-                                        .cornerRadius(8)
-                                } else {
-                                    Text(firebase.introductionText)
-                                        .padding(4)
-                                }
-                                    
-                                if userID == Auth.auth().currentUser?.uid {
-                                    
-                                    Button(action: {
-                                        if isEditingIntroduction {
-                                            firebase.updateIntroductionText(userID: userID, introduction: newIntroductionText)
-                                        } else {
-                                            newIntroductionText = firebase.introductionText
-                                        }
-                                        isEditingIntroduction.toggle()
-                                    }) {
-                                        Text(isEditingIntroduction ? "Save" : "Edit")
-                                    }
-                                    .padding()
-                                    .padding(.top, 20)
-                                    .padding(.leading, 20)
-                                    
-                                } else {}
-                                
-                            }
-                        }
-                        .padding()
-                    }
-                    
-                    Spacer()
-                    
-                    if firebase.userPosts.isEmpty {
-                        
-                        if firebase.isLoggedIn && userID == Auth.auth().currentUser?.uid {
-                            VStack {
-                                Text("There is no post so far.")
-                                    .padding()
-                                NavigationLink(destination: Add3DModelView()) {
-                                    Text("Post now →")
-                                        .padding()
-                                        .foregroundColor(Color.white)
-                                        .cornerRadius(8)
-                                }
-                            }
-                        } else {
-                            
-                            Text("There is no post so far.")
-                                .padding()
-                            
-                        }
-                        
-                    } else {
-                        
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            
-                            LazyHStack(spacing: 20) {
-                                
-                                ForEach(firebase.userPosts) { post in
-                                    
-                                    NavigationLink(destination: DetailViewFromProfile(postID: post.id, userID: post.creatorUserID, username: username, thumbnailURL: post.thumbnailURL, localFileURL: localFileURLs[post.id] ?? URL(fileURLWithPath: ""), caption: post.caption ?? "", firebaseViewModel: firebase)) {
-                                        
-                                        VStack {
-                                            if post.fileType == "mov" {
-                                                
-                                                AsyncImage(url: post.thumbnailURL) { phase in
-                                                    switch phase {
-                                                    case .success(let image):
-                                                        image.resizable()
-                                                            .aspectRatio(contentMode: .fit)
-                                                            .clipShape(RoundedRectangle(cornerRadius: 10))
-                                                            .frame(width: 400, height: 250)
-                                                    case .failure(_), .empty:
-                                                        EmptyView()
-                                                    @unknown default:
-                                                        EmptyView()
-                                                    }
-                                                }
-                                                
-                                                if let caption = post.caption {
-                                                    Text(caption)
-                                                        .lineLimit(3)
-                                                        .truncationMode(.tail)
-                                                        .padding(.top, 10)
-                                                        .frame(width: 400)
-                                                }
-                                                
-                                            } else if post.fileType == "usdz" || post.fileType == "reality" {
-                                                
-                                                Model3D(url: URL(string: post.videoURL)!) { model in
-                                                    model
-                                                        .resizable()
-                                                        .aspectRatio(contentMode: .fit)
-                                                        .frame(width: 300, height: 187.5)
-                                                } placeholder: {
-                                                    ProgressView()
-                                                }
-                                                
-                                                if let caption = post.caption {
-                                                    Text(caption)
-                                                        .lineLimit(3)
-                                                        .truncationMode(.tail)
-                                                        .padding(.top, 50)
-                                                        .frame(width: 400)
-                                                }
-                                                
-                                            }
-                                            
-                                        }
-                                        .frame(width: 500, height: 312.5)
-                                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                                    }
-                                    .buttonStyle(PlainButtonStyle())
-                                    .padding(.horizontal, 10)
-                                    .onAppear {
-                                        if localFileURLs[post.id] == nil {
-                                            firebase.downloadVideoFileForQL(from: post.videoURL, fileType: post.fileType) { result in
-                                                switch result {
-                                                case .success(let url):
-                                                    localFileURLs[post.id] = url
-                                                case .failure(let error):
-                                                    print("Error downloading video for post \(post.id): \(error.localizedDescription)")
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                    }
-                        
-                    
-                    Spacer()
-                    
-                    VStack {
-                        
-                        if userID == Auth.auth().currentUser?.uid {
-                            
-                            Text("We started to toddle only recently.")
-                                .padding(.top, 20)
-                            Text("If you have any concerns or request, please email us below.")
-                            Spacer()
-                            Text("support@teegarden.app")
-                                .padding()
-                                .padding(.bottom, 20)
-                            
-                        } else {
-                            
-                            Text("")
-                                .padding()
-                                .padding(.top, 20)
-                                .padding(.bottom, 20)
-                            
-                        }
-                        
-                    }
-                    .padding()
-                    
-                    Spacer()
-                    
-                }
-                .padding(.top, 30)
-                .padding(.bottom, 30)
-                .padding(.leading, 30)
-                .padding(.trailing, 30)
-                .navigationTitle(userID == Auth.auth().currentUser?.uid ? "My Space" : "The Creator Profile")
-                .navigationBarTitleDisplayMode(.inline)
-                .sheet(isPresented: $showingImagePicker, onDismiss: handleImageSelectionForUpload) {
-                    ImagePicker(selectedImage: $inputImage)
-                }
-            }
-            .onAppear {
-
-                print("View user ID: \(userID)")
-                
-                fetchProfileImage(for: userID)
-                firebase.fetchUserPosts(userID: userID)
-                firebase.fetchUserProfile(userID: userID)
-                firebase.fetchIntroductionText(userID: userID)
-
-            }
-        }
-    }
-    
-    func handleImageSelectionForUpload() {
-        guard let userID = Auth.auth().currentUser?.uid, let imageToUpload = inputImage else { return }
-        
-        firebase.uploadProfileImage(userID: userID, image: imageToUpload) { result in
-            switch result {
-            case .success(let url):
-                print("Uploaded Profile Image URL: \(url)")
-                firebase.updateUserProfileImageURL(userID: userID, imageURL: url) { error in
-                    if let error = error {
-                        print("Error updating user profile with image URL: \(error.localizedDescription)")
-                    } else {
-                        print("User profile image URL updated successfully.")
-                    }
-                }
-            case .failure(let error):
-                print("Error uploading profile image: \(error.localizedDescription)")
-            }
         }
     }
 }

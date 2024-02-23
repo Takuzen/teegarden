@@ -29,7 +29,7 @@ class FirebaseViewModel: ObservableObject {
     
     private let maxLocalStorageSize: UInt64 = 3 * 1024 * 1024 * 1024
     
-    @Published var isLoggedIn:Bool = false
+    @Published var isLoggedIn: Bool = false
     @Published var userID: String = ""
     @Published var username: String = ""
     @Published var mail: String = ""
@@ -39,6 +39,9 @@ class FirebaseViewModel: ObservableObject {
     @Published var errorMessage: String = ""
     @Published var favoriteBooks: [Book] = []
     @Published var fileURLs: [URL] = []
+
+    @Published var blockSuccessMessage: String = ""
+    @Published var blockFailureMessage: String = ""
     
     @Published var postsWithMetadata: [PostWithMetadata] = []
     
@@ -468,8 +471,8 @@ class FirebaseViewModel: ObservableObject {
         }
     }
 
-    func login(completion: @escaping (Bool, String) -> Void) {
-        Auth.auth().signIn(withEmail: mail, password: password) { authResult, error in
+    func login(email: String, password: String, completion: @escaping (Bool, String) -> Void) {
+        Auth.auth().signIn(withEmail: email, password: password) { authResult, error in
             if let error = error {
                 // If there's an error, pass false and the error message to the completion handler.
                 completion(false, error.localizedDescription)
@@ -496,6 +499,38 @@ class FirebaseViewModel: ObservableObject {
         } catch let signOutError as NSError {
             DispatchQueue.main.async {
                 self.errorMessage = "Error signing out: \(signOutError.localizedDescription)"
+            }
+        }
+    }
+    
+    func blockCustomer(targetCustomerID: String /*, reason: String*/ ) {
+        // Ensure the user is logged in before allowing them to flag content
+        guard isLoggedIn, !userID.isEmpty else {
+            errorMessage = "User must be logged in to flag content."
+            return
+        }
+
+        // Create a reference to the flagged_content collection
+        let blockedCustomerRef = db.collection("blocked_customer").document()
+
+        // Set up the data for the flagged content
+        let targetCustomerData = [
+            "targetCustomerID": targetCustomerID,
+            "blockedBy": Auth.auth().currentUser?.uid ?? "Not available",
+            /* "flagReason": reason, */
+            "timestamp": Timestamp(date: Date()),
+            "status": "pending"
+        ] as [String : Any]
+
+        // Add the flagged content data to the Firestore collection
+        blockedCustomerRef.setData(targetCustomerData) { error in
+            if let error = error {
+                self.blockFailureMessage = "Error block customer: \(error.localizedDescription)"
+            } else {
+                // Successfully flagged content
+                DispatchQueue.main.async {
+                    self.blockSuccessMessage = "The customer has been successfully blocked. We will address the issue promptly."
+                }
             }
         }
     }
