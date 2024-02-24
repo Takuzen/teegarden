@@ -47,7 +47,7 @@ struct ContentView: View {
     
     var body: some View {
         TabView(selection: $selectedTab) {
-            homeView()
+            HomeView()
                 .tabItem {
                     Image(systemName: "house")
                     Text("Home")
@@ -88,7 +88,7 @@ struct ContentView: View {
     struct HomeViewWrapper: View {
         var body: some View {
             NavigationStack {
-                homeView()
+                HomeView()
             }
         }
     }
@@ -516,6 +516,7 @@ struct DetailViewFromProfile: View {
 }
  */
 
+/*
 struct homeView: View {
 
     @State private var localFileURLs: [String: URL] = [:]
@@ -722,6 +723,7 @@ struct homeView: View {
         }
     }
 }
+ */
 
 struct ImagePicker: UIViewControllerRepresentable {
     @Binding var selectedImage: UIImage?
