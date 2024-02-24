@@ -7,7 +7,8 @@ extension UTType {
     static let reality = UTType(exportedAs: "com.apple.reality")
 }
 
-import FirebaseAuth
+import Firebase
+
 import RealityKit
 
 import Observation
@@ -19,14 +20,8 @@ import AVKit
     
 struct ContentView: View {
     
-    @Environment(\.scenePhase) private var scenePhase
-    
-    @Environment(ViewModel.self) private var model
-    
     @State private var defaultSelectionForUserMenu: String? = "All"
     @State private var selectedTab: TabItem = .home
-    
-    @StateObject var firebase = FirebaseViewModel()
     
     @ObservedObject var googleBooksAPI = GoogleBooksAPIRepository()
     
@@ -52,48 +47,42 @@ struct ContentView: View {
     
     var body: some View {
         TabView(selection: $selectedTab) {
-            ForEach(TabItem.allCases, id: \.self) { tab in
-                Group {
-                    if tab == .home {
-                        HomeViewWrapper()
-                    } else if tab == .profile && !firebase.isLoggedIn {
-                        LogInView()
-                            .environmentObject(firebase)
-                    } else if tab == .profile && firebase.isLoggedIn {
-                        UserViewWrapper()
-                            .environmentObject(FirebaseViewModel.shared)
-                    } else if tab == .post && !firebase.isLoggedIn {
-                        SignUpView()
-                            .environmentObject(firebase)
-                    } else if tab == .post && firebase.isLoggedIn {
-                        Add3DModelViewWrapper()
-                    }
-                }
+            homeView()
                 .tabItem {
-                    Image(systemName: tab.rawValue)
-                    Text(tab.title)
+                    Image(systemName: "house")
+                    Text("Home")
                 }
-                .tag(tab)
+                .tag(TabItem.home)
+
+            Group {
+                if FirebaseViewModel.shared.isLoggedIn {
+                    UserViewWrapper(userID: Auth.auth().currentUser?.uid ?? "")
+                } else {
+                    LogInView()
+                }
             }
+            .tabItem {
+                Image(systemName: "person.crop.circle")
+                Text("Profile")
+            }
+            .tag(TabItem.profile)
+
+            Group {
+                if FirebaseViewModel.shared.isLoggedIn {
+                    Add3DModelViewWrapper()
+                } else {
+                    SignUpView()
+                }
+            }
+            .tabItem {
+                Image(systemName: "plus")
+                Text("Post")
+            }
+            .tag(TabItem.post)
         }
         .onAppear {
             selectedTab = .home
         }
-        /*
-        .onChange(of: scenePhase) { newScenePhase, _ in
-            if newScenePhase == .background {
-
-                do {
-                    try Auth.auth().signOut()
-                    DispatchQueue.main.async {
-                        self.isLoggedIn = false
-                    }
-                } catch let signOutError as NSError {
-                    print("Error signing out: %@", signOutError)
-                }
-            }
-        }
-         */
     }
 
     struct HomeViewWrapper: View {
@@ -105,20 +94,18 @@ struct ContentView: View {
     }
 
     struct UserViewWrapper: View {
+        var userID: String
         
-        @StateObject var firebase = FirebaseViewModel()
+        @State private var username: String = ""
 
         var body: some View {
-            
             NavigationStack {
-                UserView(userID: FirebaseViewModel.shared.userID, username: FirebaseViewModel.shared.username)
-            }
-            .onAppear{
-                if let currentUserID = Auth.auth().currentUser?.uid {
-                    firebase.fetchUserProfile(userID: currentUserID)
-                } else {
-                    print("Error: currentUserID is nil")
-                }
+                UserView(userID: userID, username: username)
+                    .onAppear {
+                        FirebaseViewModel.shared.fetchUsername(userID: userID) { fetchedUsername in
+                            username = fetchedUsername
+                        }
+                    }
             }
         }
     }
@@ -281,92 +268,70 @@ struct ContentView: View {
 // MARK: - ContentView END
 
 struct DetailView: View {
-    let postID: String
     let userID: String
-    let username: String
-    let thumbnailURL: URL?
-    let localFileURL: URL
-    let caption: String
+    let postID: String
     
-    @ObservedObject var firebaseViewModel: FirebaseViewModel
-    
+    @State private var post: Post?
     @State private var showSpatialPlayer = false
     @State private var profileImageURL: URL?
     
-    func fetchProfileImage(for userID: String) {
-        firebaseViewModel.fetchProfileImageURL(for: userID) { url in
-            if let url = url {
-                withAnimation {
-                    profileImageURL = url
-                }
-            }
-        }
-    }
-    
     var body: some View {
-        
         VStack {
-            
-            NavigationLink(destination: UserView(userID: userID, username: username)) {
-                HStack {
-                    if let profileImageURL = profileImageURL {
-                        AsyncImage(url: profileImageURL) { phase in
-                            switch phase {
-                            case .success(let image):
-                                image.resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .frame(width: 40, height: 40)
-                                    .clipShape(Circle())
-                            case .failure(_):
-                                Image(systemName: "person.crop.circle.fill")
-                                    .resizable()
-                                    .frame(width: 30, height: 30)
-                                    .clipShape(Circle())
-                            case .empty:
-                                ProgressView()
-                            @unknown default:
-                                EmptyView()
+            if let post = post {
+                NavigationLink(destination: UserView(userID: userID, username: post.username)) {
+                    HStack {
+                        if let profileImageURL = profileImageURL {
+                            AsyncImage(url: profileImageURL) { phase in
+                                switch phase {
+                                case .success(let image):
+                                    image.resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                        .frame(width: 40, height: 40)
+                                        .clipShape(Circle())
+                                case .failure(_):
+                                    Image(systemName: "person.crop.circle.fill")
+                                        .resizable()
+                                        .frame(width: 30, height: 30)
+                                        .clipShape(Circle())
+                                case .empty:
+                                    ProgressView()
+                                @unknown default:
+                                    EmptyView()
+                                }
                             }
+                        } else {
+                            Image(systemName: "person.crop.circle.fill")
+                                .resizable()
+                                .frame(width: 30, height: 30)
+                                .clipShape(Circle())
                         }
-                    } else {
-                        Image(systemName: "person.crop.circle.fill")
-                            .resizable()
-                            .frame(width: 30, height: 30)
-                            .clipShape(Circle())
+                        Text(post.username)
+                            .bold()
+                            .padding(.leading, 5)
+                        Spacer()
                     }
-                    
-                    Text(username)
-                        .bold()
-                        .padding(.leading, 5)
-                    
-                    Spacer()
+                    .padding(.bottom, 25)
                 }
-                .padding(.bottom, 25)
-            }
-            .buttonStyle(PlainButtonStyle())
-            .frame(width: 800)
-            
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack {
-                    if let post = firebaseViewModel.postsWithMetadata.first(where: { $0.id == postID }) {
-
+                .buttonStyle(PlainButtonStyle())
+                .frame(width: 800)
+                
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack {
                         if post.fileType == "mov" {
                             Button(action: {
                                 self.showSpatialPlayer = true
                             }) {
                                 ZStack {
-
-                                    AsyncImage(url: thumbnailURL) { image in
+                                    AsyncImage(url: post.thumbnailURL) { image in
                                         image.resizable()
-                                             .aspectRatio(contentMode: .fill)
-                                             .frame(width: 800, height: 500)
-                                             .clipped()
-                                             .clipShape(RoundedRectangle(cornerRadius: 10))
+                                            .aspectRatio(contentMode: .fill)
+                                            .frame(width: 800, height: 500)
+                                            .clipped()
+                                            .clipShape(RoundedRectangle(cornerRadius: 10))
                                     } placeholder: {
                                         Color.gray
                                             .frame(width: 800, height: 500)
                                     }
-
                                     Image(systemName: "play.circle.fill")
                                         .resizable()
                                         .aspectRatio(contentMode: .fit)
@@ -375,37 +340,55 @@ struct DetailView: View {
                                 }
                             }
                             .sheet(isPresented: $showSpatialPlayer) {
-                                SpatialVideoPlayer(videoURL: localFileURL)
+                                SpatialVideoPlayer(videoURL: URL(string: post.videoURL)!)
                             }
                             .buttonStyle(PlainButtonStyle())
-                            
                         } else {
-
-                            USDZQLPreview(url: localFileURL)
+                            USDZQLPreview(url: URL(string: post.videoURL)!)
                                 .frame(width: 800, height: 500)
-                            
                         }
-                        
-                    } else {
-                        
-                        Text("Post details not found.")
-                        
+                        Text(post.caption ?? "")
+                            .frame(width: 800, alignment: .leading)
+                            .padding(.top, 20)
+                            .padding(.bottom, 20)
                     }
-                    
-                    Text(caption)
-                        .frame(width: 800, alignment: .leading)
-                        .padding(.top, 20)
-                        .padding(.bottom, 20)
-                    
                 }
+            } else {
+                Text("Post details not found.")
             }
-            .onAppear {
-                fetchProfileImage(for: userID)
+        }
+        .onAppear {
+            fetchProfileImage(for: userID)
+            getPostDocument(userID: userID, postID: postID)
+        }
+    }
+    
+    private func fetchProfileImage(for userID: String) {
+        FirebaseViewModel.shared.fetchProfileImageURL(for: userID) { url in
+            profileImageURL = url
+        }
+    }
+    
+    private func getPostDocument(userID: String, postID: String) {
+        let db = Firestore.firestore()
+        let postRef = db.collection("users").document(userID).collection("posts").document(postID)
+        
+        postRef.getDocument { (document, error) in
+            if let document = document, document.exists {
+                let data = document.data()
+                let thumbnailURL = (data?["thumbnailURL"] as? String).flatMap(URL.init)
+                let videoURL = data?["videoURL"] as? String ?? ""
+                let caption = data?["caption"] as? String
+                let fileType = data?["fileType"] as? String ?? ""
+                let username = data?["username"] as? String ?? "Unknown"
+                
+                post = Post(id: postID, creatorUserID: userID, videoURL: videoURL, thumbnailURL: thumbnailURL, caption: caption, creationDate: nil, fileType: fileType, username: username)
             }
         }
     }
 }
 
+/*
 struct DetailViewFromProfile: View {
     let postID: String
     let userID: String
@@ -531,19 +514,16 @@ struct DetailViewFromProfile: View {
         }
     }
 }
+ */
 
 struct homeView: View {
-    @ObservedObject var firebaseViewModel = FirebaseViewModel()
+
     @State private var localFileURLs: [String: URL] = [:]
     @State private var fileURLs: [URL] = []
     @State private var profileImageURLs: [String: URL] = [:]
-    let dispatchGroup = DispatchGroup()
-    
-    let timer = Timer.publish(every: 10, on: .main, in: .common).autoconnect()
-    let customColor = Color(red: 0.988, green: 0.169, blue: 0.212)
     
     func fetchProfileImage(for userID: String) {
-        firebaseViewModel.fetchProfileImageURL(for: userID) { url in
+        FirebaseViewModel.shared.fetchProfileImageURL(for: userID) { url in
             if let url = url {
                 withAnimation {
                     profileImageURLs[userID] = url
@@ -581,15 +561,15 @@ struct homeView: View {
                         
                         LazyHGrid(rows: rows, spacing: 20) {
                             
-                            ForEach(firebaseViewModel.postsWithMetadata, id: \.id) { postWithMeta in
+                            ForEach(FirebaseViewModel.shared.homePosts) { post in
                                 
-                                NavigationLink(destination: DetailView(postID: postWithMeta.id, userID: postWithMeta.userID, username: postWithMeta.username, thumbnailURL: URL(string: postWithMeta.thumbnailURL ?? ""), localFileURL: localFileURLs[postWithMeta.id] ?? URL(fileURLWithPath: ""), caption: postWithMeta.caption ,firebaseViewModel: firebaseViewModel)) {
+                                NavigationLink(destination: DetailView(userID: post.creatorUserID, postID: post.id)) {
                                     
                                     VStack {
                                         
-                                        NavigationLink(destination: UserView(userID: postWithMeta.userID, username: postWithMeta.username)) {
+                                        NavigationLink(destination: UserView(userID: post.creatorUserID, username: post.username)) {
                                             HStack {
-                                                if let profileImageURL = profileImageURLs[postWithMeta.userID] {
+                                                if let profileImageURL = profileImageURLs[post.creatorUserID] {
                                                     AsyncImage(url: profileImageURL) { phase in
                                                         switch phase {
                                                         case .success(let image):
@@ -617,7 +597,7 @@ struct homeView: View {
                                                         .clipShape(Circle())
                                                 }
                                                 
-                                                Text(postWithMeta.username)
+                                                Text(post.username)
                                                     .bold()
                                                     .padding(.leading, 5)
                                                 
@@ -628,11 +608,11 @@ struct homeView: View {
                                         .buttonStyle(PlainButtonStyle())
                                         .frame(width: 600)
                                         
-                                        switch postWithMeta.fileType {
+                                        switch post.fileType {
                                         case "mov":
-                                            if let thumbnailURLString = postWithMeta.thumbnailURL, let url = URL(string: thumbnailURLString) {
+                                            if let thumbnailURL = post.thumbnailURL {
                                                 ZStack(alignment: .topTrailing) {
-                                                    AsyncImage(url: url) { phase in
+                                                    AsyncImage(url: thumbnailURL) { phase in
                                                         switch phase {
                                                         case .success(let image):
                                                             image.resizable()
@@ -669,7 +649,7 @@ struct homeView: View {
                                         case "usdz", "reality":
                                             ZStack(alignment: .topTrailing) {
                                                 
-                                                Model3D(url: URL(string: postWithMeta.videoURL)!) { model in
+                                                Model3D(url: URL(string: post.videoURL)!) { model in
                                                     model
                                                         .resizable()
                                                         .aspectRatio(contentMode: .fit)
@@ -694,8 +674,8 @@ struct homeView: View {
                                                 .clipShape(RoundedRectangle(cornerRadius: 10))
                                         }
                                         
-                                        if !postWithMeta.caption.isEmpty {
-                                            Text(postWithMeta.caption)
+                                        if let caption = post.caption, !caption.isEmpty {
+                                            Text(caption)
                                                 .lineLimit(3)
                                                 .truncationMode(.tail)
                                                 .frame(maxWidth: 500, alignment: .leading)
@@ -703,22 +683,18 @@ struct homeView: View {
                                         }
 
                                     }
+                                    .onAppear {
+                                                // Debug statement to print post details
+                                                print("Post ID: \(post.id), Username: \(post.username), Caption: \(post.caption ?? "No caption")")
+                                            }
                                 }
                                 .frame(width: 600, height: 800)
                                 .buttonStyle(PlainButtonStyle())
-                                .onAppear {
-                                    if localFileURLs[postWithMeta.id] == nil {
-                                        firebaseViewModel.downloadVideoFileForQL(from: postWithMeta.videoURL, fileType: postWithMeta.fileType) { result in
-                                            switch result {
-                                            case .success(let url):
-                                                localFileURLs[postWithMeta.id] = url
-                                            case .failure(let error):
-                                                print("Error downloading video for post \(postWithMeta.id): \(error.localizedDescription)")
-                                            }
-                                        }
-                                    }
-                                }
+                                /*
+                                
+                                 */
                             }
+                            
                         }
                         .padding(.top, 10)
                         .padding(.bottom, 10)
@@ -726,26 +702,22 @@ struct homeView: View {
                         
                     }
                     .frame(width: geometry.size.width, height: geometry.size.height / 3 * 2 + 100)
-                    .onAppear {
-                        print("Fetching posts with metadata...")
-                        firebaseViewModel.fetchPostsWithMetadata {
-                            for post in firebaseViewModel.postsWithMetadata {
-                                print("Post user ID: \(post.userID)")
-                                fetchProfileImage(for: post.userID)
-                            }
-                        }
-                    }
-                    .onReceive(timer) { _ in
-                        firebaseViewModel.fetchPostsWithMetadata {
-                            for post in firebaseViewModel.postsWithMetadata {
-                                fetchProfileImage(for: post.userID)
-                            }
-                        }
-                    }
                     .padding(.leading, 30)
                     .padding(.top, -30)
+                    
                 }
                 Spacer()
+                    .onAppear {
+                        print("Fetching posts...")
+                        FirebaseViewModel.shared.fetchHomePosts {
+                            print("Posts fetched: \(FirebaseViewModel.shared.homePosts.count)")
+                            for post in FirebaseViewModel.shared.homePosts {
+                                print("Post ID: \(post.id), Username: \(post.username)")
+                                fetchProfileImage(for: post.creatorUserID)
+                            }
+                            print("Posts: \(FirebaseViewModel.shared.homePosts)")
+                        }
+                    }
             }
         }
     }
@@ -1408,8 +1380,10 @@ struct Add3DModelView: View {
                             )
                         }
                         
-                        Text("We accept a MOV/MV-HEVC, USDZ, or REALITY File each post.")
-                            .padding(.top, 3)
+                        Text("We accept uploading a spatial video and model.")
+                            .padding(.top, 5)
+                        
+                        Text("MOV/MV-HEVC, USDZ, or REALITY File are welcomed.")
                         
                         ZStack(alignment: .topLeading) {
                             if captionText.isEmpty && !isEditing {

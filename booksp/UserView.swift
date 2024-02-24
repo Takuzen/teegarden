@@ -29,17 +29,6 @@ struct UserView: View {
     
     @State private var localBlockSuccessSheet = false
     @State private var localBlockFailureSheet = false
-    
-    
-    func fetchProfileImage(for userID: String) {
-        FirebaseViewModel.shared.fetchProfileImageURL(for: userID) { url in
-            if let url = url {
-                withAnimation {
-                    profileImageURL = url
-                }
-            }
-        }
-    }
 
     var body: some View {
         
@@ -137,7 +126,6 @@ struct UserView: View {
                                         ActionSheet(
                                             title: Text("Actions"),
                                             buttons: [
-                                                // .default(Text("Flag")) { /* Implement flagging logic */ },
                                                 .destructive(Text("Block")) {
                                                     FirebaseViewModel.shared.blockCustomer(targetCustomerID: userID)
                                                 },
@@ -192,7 +180,7 @@ struct UserView: View {
                                         .padding(4)
                                 }
                                     
-                                if userID == FirebaseViewModel.shared.userID {
+                                if userID == Auth.auth().currentUser?.uid {
                                     
                                     Button(action: {
                                         if isEditingIntroduction {
@@ -217,9 +205,9 @@ struct UserView: View {
                     
                     Spacer()
                     
-                    if FirebaseViewModel.shared.userPosts.isEmpty {
+                    if userPostsViewModel.userPosts.isEmpty {
                         
-                        if FirebaseViewModel.shared.isLoggedIn && userID == Auth.auth().currentUser?.uid {
+                        if userID == Auth.auth().currentUser?.uid {
                             VStack {
                                 Text("There is no post so far.")
                                     .padding()
@@ -245,7 +233,7 @@ struct UserView: View {
                                 
                                 ForEach(userPostsViewModel.userPosts) { post in
                                     
-                                    NavigationLink(destination: DetailViewFromProfile(postID: post.id, userID: post.creatorUserID, username: username, thumbnailURL: post.thumbnailURL, localFileURL: localFileURLs[post.id] ?? URL(fileURLWithPath: ""), caption: post.caption ?? "", firebaseViewModel: FirebaseViewModel.shared)) {
+                                    NavigationLink(destination: DetailView(userID: post.creatorUserID, postID: post.id)) {
                                         
                                         VStack {
                                             if post.fileType == "mov" {
@@ -361,10 +349,20 @@ struct UserView: View {
             .onAppear {
                 
                 fetchProfileImage(for: userID)
-                FirebaseViewModel.shared.fetchUserPosts(userID: userID)
+                userPostsViewModel.fetchUserPosts(userID: userID)
                 FirebaseViewModel.shared.fetchUserProfile(userID: userID)
                 FirebaseViewModel.shared.fetchIntroductionText(userID: userID)
 
+            }
+        }
+    }
+    
+    func fetchProfileImage(for userID: String) {
+        FirebaseViewModel.shared.fetchProfileImageURL(for: userID) { url in
+            if let url = url {
+                withAnimation {
+                    profileImageURL = url
+                }
             }
         }
     }

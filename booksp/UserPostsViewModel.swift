@@ -13,8 +13,7 @@ class UserPostsViewModel: ObservableObject {
     @Published var userPosts: [Post] = []
 
     func fetchUserPosts(userID: String) {
-        // Fetch posts for the given user ID and assign them to userPosts
-        // This is just a placeholder implementation. You'll need to fill in the actual fetching logic.
+
         let postsRef = Firestore.firestore().collection("users").document(userID).collection("posts")
             .order(by: "timestamp", descending: true)
 
