@@ -40,8 +40,10 @@ struct HomeView: View {
                 }
                 .padding(.leading, 15)
                 .padding(.top, 40)
+                .padding(.bottom, 30)
                 
                 VStack {
+                    /*
                     HStack {
                         Text("Spatial Creators")
                             .font(.headline)
@@ -50,20 +52,23 @@ struct HomeView: View {
                     }
                     .padding(.top, 20)
                     .padding(.leading, 10)
+                     */
                     
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        let rows = [GridItem(.flexible(minimum: 10, maximum: .infinity), spacing: 20)]
+                    NavigationStack {
                         
-                        LazyHGrid(rows: rows, spacing: 20) {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            let rows = [GridItem(.flexible(minimum: 10, maximum: .infinity), spacing: 20)]
                             
-                            ForEach(homeViewModel.homePosts) { post in
+                            LazyHGrid(rows: rows, spacing: 20) {
                                 
-                                NavigationLink(destination: DetailView(userID: post.creatorUserID, postID: post.id)) {
+                                ForEach(homeViewModel.homePosts, id: \.id) { post in
                                     
                                     VStack {
                                         
                                         NavigationLink(destination: UserView(userID: post.creatorUserID, username: post.username)) {
+                                            
                                             HStack {
+                                                
                                                 if let profileImageURL = profileImageURLs[post.creatorUserID] {
                                                     AsyncImage(url: profileImageURL) { phase in
                                                         switch phase {
@@ -83,9 +88,7 @@ struct HomeView: View {
                                                             EmptyView()
                                                         }
                                                     }
-                                                    
                                                 } else {
-                                                    
                                                     Image(systemName: "person.crop.circle.fill")
                                                         .resizable()
                                                         .frame(width: 30, height: 30)
@@ -97,86 +100,95 @@ struct HomeView: View {
                                                     .padding(.leading, 5)
                                                 
                                                 Spacer()
+                                                
                                             }
                                             .padding(.bottom, 25)
+                                            .buttonStyle(PlainButtonStyle())
+                                            .frame(width: 600)
                                         }
-                                        .buttonStyle(PlainButtonStyle())
-                                        .frame(width: 600)
                                         
-                                        switch post.fileType {
-                                        case "mov":
-                                            if let thumbnailURL = post.thumbnailURL {
-                                                ZStack(alignment: .topTrailing) {
-                                                    AsyncImage(url: thumbnailURL) { phase in
-                                                        switch phase {
-                                                        case .success(let image):
-                                                            image.resizable()
-                                                                .scaledToFill()
-                                                                .frame(width: 600, height: 247.22)
-                                                                .clipped()
-                                                                .transition(.opacity)
-                                                                .clipShape(RoundedRectangle(cornerRadius: 10))
-                                                        case .failure(_), .empty:
-                                                            EmptyView()
-                                                        @unknown default:
-                                                            EmptyView()
+                                        NavigationLink(destination: DetailView(userID: post.creatorUserID, postID: post.id)) {
+                                            
+                                            VStack {
+                                                
+                                                switch post.fileType {
+                                                case "mov":
+                                                    if let thumbnailURL = post.thumbnailURL {
+                                                        ZStack(alignment: .topTrailing) {
+                                                            AsyncImage(url: thumbnailURL) { phase in
+                                                                switch phase {
+                                                                case .success(let image):
+                                                                    image.resizable()
+                                                                        .scaledToFill()
+                                                                        .frame(width: 600, height: 247.22)
+                                                                        .clipped()
+                                                                        .transition(.opacity)
+                                                                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                                                                case .failure(_), .empty:
+                                                                    EmptyView()
+                                                                @unknown default:
+                                                                    EmptyView()
+                                                                }
+                                                            }
+                                                            .padding(.top, 5)
+                                                            .padding(.trailing, 5)
+                                                            
+                                                            Image(systemName: "pano.badge.play.fill")
+                                                                .symbolRenderingMode(.palette)
+                                                                .imageScale(.large)
+                                                                .padding([.top, .trailing], 20)
                                                         }
+                                                    } else {
+                                                        
+                                                        Text("No thumbnail available")
+                                                            .frame(width: 600, height: 247.22)
+                                                            .background(Color.gray.opacity(0.5))
+                                                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                                                            .shadow(radius: 10)
+                                                            .padding(.top, 30)
+                                                            .padding(.bottom, 30)
+                                                        
                                                     }
-                                                    .padding(.top, 5)
-                                                    .padding(.trailing, 5)
-                                                    
-                                                    Image(systemName: "pano.badge.play.fill")
-                                                        .symbolRenderingMode(.palette)
-                                                        .imageScale(.large)
-                                                        .padding([.top, .trailing], 20)
+                                                case "usdz", "reality":
+                                                    ZStack(alignment: .topTrailing) {
+                                                        
+                                                        Model3D(url: URL(string: post.videoURL)!) { model in
+                                                            model
+                                                                .resizable()
+                                                                .aspectRatio(contentMode: .fit)
+                                                        } placeholder: {
+                                                            ProgressView()
+                                                        }
+                                                        .frame(width: 540, height: 187.22)
+                                                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                                                        .padding(.top, 55)
+                                                        .padding(.bottom, 55)
+                                                        
+                                                        Image(systemName: "move.3d")
+                                                            .symbolRenderingMode(.palette)
+                                                            .imageScale(.large)
+                                                            .padding([.top, .trailing], 20)
+                                                        
+                                                    }
+                                                default:
+                                                    Text("Unsupported or no preview available")
+                                                        .frame(width: 600, height: 247.22)
+                                                        .background(Color.gray.opacity(0.5))
+                                                        .clipShape(RoundedRectangle(cornerRadius: 10))
                                                 }
-                                            } else {
                                                 
-                                                Text("No thumbnail available")
-                                                    .frame(width: 600, height: 247.22)
-                                                    .background(Color.gray.opacity(0.5))
-                                                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                                                    .shadow(radius: 10)
-                                                    .padding(.top, 30)
-                                                    .padding(.bottom, 30)
+                                                if let caption = post.caption, !caption.isEmpty {
+                                                    Text(caption)
+                                                        .lineLimit(3)
+                                                        .truncationMode(.tail)
+                                                        .frame(maxWidth: 500, alignment: .leading)
+                                                        .padding(.top, 20)
+                                                }
                                                 
                                             }
-                                        case "usdz", "reality":
-                                            ZStack(alignment: .topTrailing) {
-                                                
-                                                Model3D(url: URL(string: post.videoURL)!) { model in
-                                                    model
-                                                        .resizable()
-                                                        .aspectRatio(contentMode: .fit)
-                                                } placeholder: {
-                                                    ProgressView()
-                                                }
-                                                .frame(width: 540, height: 187.22)
-                                                .clipShape(RoundedRectangle(cornerRadius: 10))
-                                                .padding(.top, 55)
-                                                .padding(.bottom, 55)
-                                                
-                                                Image(systemName: "move.3d")
-                                                    .symbolRenderingMode(.palette)
-                                                    .imageScale(.large)
-                                                    .padding([.top, .trailing], 20)
-                                                
-                                            }
-                                        default:
-                                            Text("Unsupported or no preview available")
-                                                .frame(width: 600, height: 247.22)
-                                                .background(Color.gray.opacity(0.5))
-                                                .clipShape(RoundedRectangle(cornerRadius: 10))
+                                            
                                         }
                                         
-                                        if let caption = post.caption, !caption.isEmpty {
-                                            Text(caption)
-                                                .lineLimit(3)
-                                                .truncationMode(.tail)
-                                                .frame(maxWidth: 500, alignment: .leading)
-                                                .padding(.top, 20)
-                                        }
-
                                     }
                                     .onAppear {
                                         // Debug statement to print post details
@@ -191,6 +203,7 @@ struct HomeView: View {
                         .padding(.top, 10)
                         .padding(.bottom, 10)
                         .frame(height: geometry.size.height / 1.5)
+                    }
                         
                     }
                     .frame(width: geometry.size.width, height: geometry.size.height / 3 * 2 + 100)
@@ -199,14 +212,10 @@ struct HomeView: View {
                     
                 }
                 .onAppear {
-                    print("Fetching posts...")
                     homeViewModel.fetchHomePosts {
-                        print("Posts fetched: \(FirebaseViewModel.shared.homePosts.count)")
-                        for post in FirebaseViewModel.shared.homePosts {
-                            print("Post ID: \(post.id), Username: \(post.username)")
+                        for post in homeViewModel.homePosts {
                             fetchProfileImage(for: post.creatorUserID)
                         }
-                        print("Posts: \(FirebaseViewModel.shared.homePosts)")
                     }
                 }
                 
@@ -215,4 +224,3 @@ struct HomeView: View {
             }
         }
     }
-}

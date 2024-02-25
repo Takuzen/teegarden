@@ -86,9 +86,6 @@ class FirebaseViewModel: ObservableObject {
                 "fileType": fileType
             ] as [String : Any]
             
-            
-            
-            
             userPostRef.setData(postData) { error in
                 if let error = error {
                     
@@ -124,11 +121,9 @@ class FirebaseViewModel: ObservableObject {
             
         }
         
-        
-        
         let uploadTaskFile = fileStorageRef.putFile(from: fileURL, metadata: nil) { metadata, error in
             if let error = error {
-                
+                print("Error getting posts: \(error.localizedDescription)")
                 completion(nil, nil)
                 return
             }
@@ -253,7 +248,6 @@ class FirebaseViewModel: ObservableObject {
             }
         } catch {}
     }
-
     
     func downloadVideoFileForQL(from videoURL: String, fileType: String, completion: @escaping (Result<URL, Error>) -> Void) {
         guard let url = URL(string: videoURL) else {
@@ -277,7 +271,6 @@ class FirebaseViewModel: ObservableObject {
             }
         }
     }
-
 
     func signUp(username: String, completion: @escaping (Bool, String) -> Void) {
         // Create a new user account with email and password
