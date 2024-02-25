@@ -33,6 +33,7 @@ struct DetailView: View {
     @State private var showSpatialPlayer = false
     @State private var profileImageURL: URL?
     @State private var localFileURL: URL?
+    @State private var showEtcSheet = false
 
     private let maxLocalStorageSize: UInt64 = 3 * 1024 * 1024 * 1024
     
@@ -160,6 +161,29 @@ struct DetailView: View {
                         
                         Spacer()
                         
+                        if FirebaseViewModel.shared.isLoggedIn {
+                            
+                            Button(action: {
+                                showEtcSheet = true
+                                print("showEtcSheet: \(showEtcSheet)")
+                            }) {
+                                Image(systemName: "ellipsis")
+                                    .frame(width: 30, height: 30)
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                            .actionSheet(isPresented: $showEtcSheet) {
+                                ActionSheet(
+                                    title: Text("Actions"),
+                                    buttons: [
+                                        .destructive(Text("Flag")) {
+                                            FirebaseViewModel.shared.flagPost(postID: postID)
+                                        },
+                                        .cancel()
+                                    ]
+                                )
+                            }
+                        }
+                        
                     }
                     .padding(.bottom, 25)
                 }
@@ -214,7 +238,7 @@ struct DetailView: View {
                     }
                 }
             } else {
-                Text("Post details not found.")
+                Text("")
             }
         }
         .onAppear {

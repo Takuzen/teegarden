@@ -123,6 +123,7 @@ struct UserView: View {
                                         Image(systemName: "ellipsis")
                                             .frame(width: 30, height: 30)
                                     }
+                                    .buttonStyle(PlainButtonStyle())
                                     .actionSheet(isPresented: $showEtcSheet) {
                                         ActionSheet(
                                             title: Text("Actions"),
@@ -134,6 +135,8 @@ struct UserView: View {
                                             ]
                                         )
                                     }
+                                    
+                                    /*
                                     .actionSheet(isPresented: $localBlockSuccessSheet) {
 
                                         ActionSheet(title: Text("Successfully blocked!"), message: Text(FirebaseViewModel.shared.blockSuccessMessage), buttons: [.cancel(Text("OK")) { FirebaseViewModel.shared.blockSuccessMessage = "" }])
@@ -144,7 +147,8 @@ struct UserView: View {
                                         ActionSheet(title: Text("Failed to block."), message: Text(FirebaseViewModel.shared.blockFailureMessage), buttons: [.cancel(Text("OK")){ FirebaseViewModel.shared.blockFailureMessage = "" }])
                                         
                                     }
-                                    .buttonStyle(PlainButtonStyle())
+                                     */
+                                    //
                                     
                                 } else {}
                         

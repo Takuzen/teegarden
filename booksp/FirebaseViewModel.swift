@@ -398,16 +398,14 @@ class FirebaseViewModel: ObservableObject {
     }
     
     func blockCustomer(targetCustomerID: String /*, reason: String*/ ) {
-        // Ensure the user is logged in before allowing them to flag content
+
         guard isLoggedIn, !userID.isEmpty else {
             errorMessage = "User must be logged in to flag content."
             return
         }
 
-        // Create a reference to the flagged_content collection
         let blockedCustomerRef = db.collection("blocked_customer").document()
 
-        // Set up the data for the flagged content
         let targetCustomerData = [
             "targetCustomerID": targetCustomerID,
             "blockedBy": Auth.auth().currentUser?.uid ?? "Not available",
@@ -416,14 +414,39 @@ class FirebaseViewModel: ObservableObject {
             "status": "pending"
         ] as [String : Any]
 
-        // Add the flagged content data to the Firestore collection
         blockedCustomerRef.setData(targetCustomerData) { error in
             if let error = error {
                 self.blockFailureMessage = "Error block customer: \(error.localizedDescription)"
             } else {
-                // Successfully flagged content
                 DispatchQueue.main.async {
                     self.blockSuccessMessage = "The customer has been successfully blocked. We will address the issue promptly."
+                }
+            }
+        }
+    }
+    
+    func flagPost(postID: String/*, reason: String*/) {
+        guard isLoggedIn, !userID.isEmpty else {
+            print("User must be logged in to flag content.")
+            return
+        }
+
+        let flagRef = db.collection("flagged_posts").document()
+
+        let flaggedPostData = [
+            "postID": postID,
+            "flaggedBy": Auth.auth().currentUser?.uid ?? "Unknown",
+            /*"reason": reason,*/
+            "timestamp": Timestamp(date: Date()),
+            "status": "pending"
+        ] as [String: Any]
+
+        flagRef.setData(flaggedPostData) { error in
+            if let error = error {
+                print("Error flagging post: \(error.localizedDescription)")
+            } else {
+                DispatchQueue.main.async {
+                print("The post has been successfully flagged for review.")
                 }
             }
         }
