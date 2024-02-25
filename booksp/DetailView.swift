@@ -102,11 +102,7 @@ struct DetailView: View {
     }
 
     private func downloadVideoFileForQL(from videoURL: String, fileType: String) {
-        guard let url = URL(string: videoURL) else {
-            print("Invalid URL: \(videoURL)")
-            return
-        }
-
+        
         checkAndCleanStorage(at: FileManager.default.temporaryDirectory)
 
         let storageRef = Storage.storage().reference(forURL: videoURL)
@@ -204,7 +200,7 @@ struct DetailView: View {
                                 USDZQLPreview(url: url)
                                     .frame(width: 800, height: 500)
                             } else {
-                                Text("The model is not available. Please contact support from profile page.")
+                                Text("")
                                     .frame(width: 800, height: 500)
                                     .background(Color.gray.opacity(0.5))
                                     .clipShape(RoundedRectangle(cornerRadius: 10))

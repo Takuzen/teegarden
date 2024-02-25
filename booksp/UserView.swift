@@ -19,10 +19,8 @@ struct UserView: View {
     
     @State private var showingImagePicker = false
     @State private var inputImage: UIImage?
-    @State private var posts: [Post] = []
     @State private var isEditingIntroduction: Bool = false
     @State private var newIntroductionText = ""
-    @State private var localFileURLs: [String: URL] = [:]
     @State private var profileImageURL: URL?
     @State private var emailCopied = false
     @State private var showEtcSheet = false
@@ -67,18 +65,21 @@ struct UserView: View {
                                     }
                                 }
                                 
-                                if userID == Auth.auth().currentUser?.uid {
-                                    Button("Upload Profile Image") {
-                                        showingImagePicker = true
-                                    }
-                                }
-                                
                             } else {
                                 
                                 Image(systemName: "person.crop.circle.fill")
                                     .resizable()
                                     .frame(width: 30, height: 30)
                                     .clipShape(Circle())
+                                
+                            }
+                            
+                            if userID == Auth.auth().currentUser?.uid {
+                                
+                                Button("Upload Profile Image") {
+                                    showingImagePicker = true
+                                }
+                                .padding(.top, 5)
                                 
                             }
                             
@@ -172,16 +173,19 @@ struct UserView: View {
                                 if isEditingIntroduction {
                                     TextEditor(text: $newIntroductionText)
                                         .padding(4)
-                                        .frame(maxHeight: .infinity)
-                                        .border(Color(UIColor.separator), width: 4)
+                                        .frame(height: 150)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .stroke(Color(UIColor.separator), lineWidth: 1)
+                                        )
                                         .cornerRadius(8)
                                 } else {
                                     Text(FirebaseViewModel.shared.introductionText)
                                         .padding(4)
+
                                 }
-                                    
+                                
                                 if userID == Auth.auth().currentUser?.uid {
-                                    
                                     Button(action: {
                                         if isEditingIntroduction {
                                             FirebaseViewModel.shared.updateIntroductionText(userID: userID, introduction: newIntroductionText)
@@ -195,10 +199,12 @@ struct UserView: View {
                                     .padding()
                                     .padding(.top, 20)
                                     .padding(.leading, 20)
-                                    
-                                } else {}
+                                }
+                                
+                                Spacer()
                                 
                             }
+                            .padding()
                         }
                         .padding()
                     }
@@ -287,23 +293,9 @@ struct UserView: View {
                                     }
                                     .buttonStyle(PlainButtonStyle())
                                     .padding(.horizontal, 10)
-                                    .onAppear {
-                                        if localFileURLs[post.id] == nil {
-                                            FirebaseViewModel.shared.downloadVideoFileForQL(from: post.videoURL, fileType: post.fileType) { result in
-                                                
-                                                switch result {
-                                                case .success(let url):
-                                                    localFileURLs[post.id] = url
-                                                case .failure(let error):
-                                                    print("Error downloading video for post \(post.id): \(error.localizedDescription)")
-                                                }
-                                            }
-                                        }
-                                    }
                                 }
                             }
                         }
-
                     }
                         
                     

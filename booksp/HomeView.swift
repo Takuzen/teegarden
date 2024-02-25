@@ -43,16 +43,6 @@ struct HomeView: View {
                 .padding(.bottom, 30)
                 
                 VStack {
-                    /*
-                    HStack {
-                        Text("Spatial Creators")
-                            .font(.headline)
-                            .padding(.leading)
-                        Spacer()
-                    }
-                    .padding(.top, 20)
-                    .padding(.leading, 10)
-                     */
                     
                     NavigationStack {
                         
