@@ -205,6 +205,7 @@ struct ContentView: View {
         @State private var showingSuccessAlert = false
         @State private var successMessage = "User registration has succeeded!"
         @State private var navigateToUserHome = false
+        @State private var showingTermsSheet = false
 
         var body: some View {
             NavigationStack {
@@ -226,6 +227,7 @@ struct ContentView: View {
                         .frame(width: 260.0, height: 100.0)
                     
                     Button(action: {
+                        showingTermsSheet = true
                         firebase.signUp(username: firebase.username) { success, message in
                             if success {
                                 successMessage = message
@@ -237,6 +239,21 @@ struct ContentView: View {
                         }
                     }) {
                         Text("Sign up →")
+                    }
+                    .sheet(isPresented: $showingTermsSheet) {
+                        TermsSheetView { didAgree in
+                            if didAgree {
+                                firebase.signUp(username: firebase.username) { success, message in
+                                    if success {
+                                        successMessage = message
+                                        showingSuccessAlert = true
+                                        firebase.isLoggedIn = true
+                                    } else {
+                                        firebase.errorMessage = message
+                                    }
+                                }
+                            }
+                        }
                     }
                     .alert(
                         "Success",
@@ -566,7 +583,6 @@ struct Add3DModelView: View {
                 return
             }
         } catch {
-            // Error while getting file attributes, show an alert
             DispatchQueue.main.async {
                 self.showAlertWith(message: "Failed to get file attributes.")
             }
