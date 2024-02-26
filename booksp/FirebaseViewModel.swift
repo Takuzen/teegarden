@@ -83,7 +83,8 @@ class FirebaseViewModel: ObservableObject {
                 "thumbnailURL": thumbnailURL,
                 "caption": caption,
                 "timestamp": Timestamp(date: Date()),
-                "fileType": fileType
+                "fileType": fileType,
+                "views": 0
             ] as [String : Any]
             
             userPostRef.setData(postData) { error in
@@ -272,9 +273,9 @@ class FirebaseViewModel: ObservableObject {
         }
     }
 
-    func signUp(username: String, completion: @escaping (Bool, String) -> Void) {
+    func signUp(email: String, password: String, username: String, completion: @escaping (Bool, String) -> Void) {
         // Create a new user account with email and password
-        Auth.auth().createUser(withEmail: mail, password: password) { authResult, error in
+        Auth.auth().createUser(withEmail: email, password: password) { authResult, error in
             if let error = error {
                 // If there's an error in account creation, return the error
                 completion(false, error.localizedDescription)

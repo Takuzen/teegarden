@@ -8,8 +8,10 @@
 import SwiftUI
 
 struct TermsSheetView: View {
+    
     @Environment(\.presentationMode) var presentationMode
-    let onAgree: (Bool) -> Void
+    
+    var onAgree: (Bool) -> Void
 
     var body: some View {
         NavigationView {
@@ -198,16 +200,18 @@ struct TermsSheetView: View {
                 }
                 .padding(30)
                 Button("Accept and Get Started") {
+                    self.onAgree(true)
                     presentationMode.wrappedValue.dismiss()
-                    onAgree(true)
                 }
                 .padding(.bottom, 20)
-                .disabled(false)
+                .bold()
+                .padding()
+                .cornerRadius(8)
             }
             .navigationBarTitle("Terms & Conditions")
             .navigationBarItems(trailing: Button("Cancel") {
+                self.onAgree(false)
                 presentationMode.wrappedValue.dismiss()
-                onAgree(false)
             })
         }
     }

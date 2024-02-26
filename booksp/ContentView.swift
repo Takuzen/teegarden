@@ -201,73 +201,61 @@ struct ContentView: View {
     }
     
     struct SignUpView: View {
-        @EnvironmentObject var firebase: FirebaseViewModel
         @State private var showingSuccessAlert = false
-        @State private var successMessage = "User registration has succeeded!"
-        @State private var navigateToUserHome = false
         @State private var showingTermsSheet = false
+        @State private var email = ""
+        @State private var password = ""
+        @State private var username = ""
+        @State private var failureMessage = ""
 
         var body: some View {
             NavigationStack {
                 VStack {
                     Text("Registration")
-                    
-                    TextField("Email", text: $firebase.mail)
+
+                    TextField("Email", text: $email)
                         .keyboardType(.emailAddress)
                         .autocapitalization(.none)
                         .padding()
                         .frame(width: 260.0, height: 100.0)
-                    
-                    SecureField("Password", text: $firebase.password)
+
+                    SecureField("Password", text: $password)
                         .padding()
                         .frame(width: 260.0, height: 100.0)
-                    
-                    TextField("Username", text: $firebase.username)
+
+                    TextField("Username", text: $username)
                         .padding()
                         .frame(width: 260.0, height: 100.0)
-                    
+
                     Button(action: {
                         showingTermsSheet = true
-                        firebase.signUp(username: firebase.username) { success, message in
-                            if success {
-                                successMessage = message
-                                showingSuccessAlert = true
-                                firebase.isLoggedIn = true
-                            } else {
-                                firebase.errorMessage = message
-                            }
-                        }
                     }) {
                         Text("Sign up →")
                     }
                     .sheet(isPresented: $showingTermsSheet) {
                         TermsSheetView { didAgree in
                             if didAgree {
-                                firebase.signUp(username: firebase.username) { success, message in
+                                FirebaseViewModel.shared.signUp(email: email, password: password, username: username) { success, message in
                                     if success {
-                                        successMessage = message
                                         showingSuccessAlert = true
-                                        firebase.isLoggedIn = true
+                                        FirebaseViewModel.shared.isLoggedIn = true
                                     } else {
-                                        firebase.errorMessage = message
+                                        failureMessage = message
                                     }
                                 }
                             }
                         }
                     }
-                    .alert(
-                        "Success",
-                        isPresented: $showingSuccessAlert,
-                        presenting: successMessage
-                    ) { _ in
-                        Button("OK") {
-                            navigateToUserHome = true
-                        }
-                    } message: { successMessage in
-                        Text(successMessage)
+                    .actionSheet(isPresented: $showingSuccessAlert) {
+                        ActionSheet(
+                            title: Text("Successfully Signed Up!"),
+                            buttons: [
+                                .default(Text("OK")) {}
+                            ]
+                        )
                     }
 
-                    Text(firebase.errorMessage)
+                    Text(failureMessage)
                         .padding(.top, 3)
                         .foregroundColor(Color.red)
 
@@ -279,6 +267,7 @@ struct ContentView: View {
             }
         }
     }
+
 
 }
 
@@ -338,6 +327,7 @@ struct Post: Identifiable {
     var creationDate: Date?
     var fileType: String
     var username: String
+    var views: Int = 0
 }
 
 struct User: Identifiable {
@@ -940,10 +930,10 @@ struct Add3DModelView: View {
                             )
                         }
                         
-                        Text("We accept uploading a spatial video and model.")
+                        Text("We welcome the upload of spatial videos and models.")
                             .padding(.top, 5)
-                        
-                        Text("MOV/MV-HEVC, USDZ, or REALITY File are welcomed.")
+
+                        Text("Supported file formats include MOV/MV-HEVC, USDZ, and REALITY.")
                         
                         ZStack(alignment: .topLeading) {
                             if captionText.isEmpty && !isEditing {

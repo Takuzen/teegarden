@@ -118,6 +118,40 @@ struct DetailView: View {
             }
         }
     }
+    
+    private func incrementViewCount() {
+        let postRef = db.collection("posts").document(postID)
+        db.runTransaction({ (transaction, errorPointer) -> Any? in
+            let postDocument: DocumentSnapshot
+            do {
+                try postDocument = transaction.getDocument(postRef)
+            } catch let fetchError as NSError {
+                errorPointer?.pointee = fetchError
+                return nil
+            }
+
+            guard let oldViewCount = postDocument.data()?["views"] as? Int else {
+                let error = NSError(
+                    domain: "AppErrorDomain",
+                    code: -1,
+                    userInfo: [
+                        NSLocalizedDescriptionKey: "Unable to retrieve view count from post document."
+                    ]
+                )
+                errorPointer?.pointee = error
+                return nil
+            }
+
+            transaction.updateData(["views": oldViewCount + 1], forDocument: postRef)
+            return nil
+        }) { _, error in
+            if let error = error {
+                print("Transaction failed: \(error)")
+            } else {
+                print("Transaction successfully committed!")
+            }
+        }
+    }
         
     var body: some View {
         
@@ -245,6 +279,7 @@ struct DetailView: View {
             fetchProfileImage(for: userID)
             fetchUsername(userID: userID)
             getPostDocument(userID: userID, postID: postID)
+            incrementViewCount()
         }
     }
 }

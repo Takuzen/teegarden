@@ -167,22 +167,29 @@ struct HomeView: View {
                                                         .clipShape(RoundedRectangle(cornerRadius: 10))
                                                 }
                                                 
-                                                if let caption = post.caption, !caption.isEmpty {
-                                                    Text(caption)
-                                                        .lineLimit(3)
-                                                        .truncationMode(.tail)
-                                                        .frame(maxWidth: 500, alignment: .leading)
-                                                        .padding(.top, 20)
+                                                HStack {
+                                                    
+                                                    if let caption = post.caption, !caption.isEmpty {
+                                                        Text(caption)
+                                                            .lineLimit(3)
+                                                            .truncationMode(.tail)
+                                                            .frame(maxWidth: 500, alignment: .leading)
+                                                            .padding(.top, 20)
+                                                    }
+                                                    
+                                                    Spacer()
+                                                    
+                                                    HStack {
+                                                        Image(systemName: "visionpro")
+                                                        Text("\(post.views)")
+                                                    }
+                                                    .padding(.trailing, 20)
+                                                
                                                 }
                                                 
                                             }
                                             
                                         }
-                                        
-                                    }
-                                    .onAppear {
-                                        // Debug statement to print post details
-                                        print("Post ID: \(post.id), Username: \(post.username), Caption: \(post.caption ?? "No caption")")
                                     }
                                 }
                                 .frame(width: 600, height: 800)

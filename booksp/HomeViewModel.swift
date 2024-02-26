@@ -6,6 +6,7 @@
 //
 
 import Firebase
+import FirebaseFirestore
 
 class HomeViewModel: ObservableObject {
     
@@ -34,6 +35,7 @@ class HomeViewModel: ObservableObject {
                     let fileType = data["fileType"] as? String ?? ""
                     let timestamp = data["timestamp"] as? Timestamp
                     let creationDate = timestamp?.dateValue()
+                    let views = data["views"] as? Int ?? 0
 
                     self.db.collection("users").document(userID).getDocument { (userDoc, userErr) in
                         if let userErr = userErr {
@@ -42,7 +44,7 @@ class HomeViewModel: ObservableObject {
                         } else if let userDoc = userDoc, userDoc.exists {
                             let userData = userDoc.data()
                             let username = userData?["username"] as? String ?? "Unknown"
-                            let post = Post(id: postID, creatorUserID: userID, videoURL: videoURL, thumbnailURL: thumbnailURL, caption: caption, creationDate: creationDate, fileType: fileType, username: username)
+                            let post = Post(id: postID, creatorUserID: userID, videoURL: videoURL, thumbnailURL: thumbnailURL, caption: caption, creationDate: creationDate, fileType: fileType, username: username, views: views)
                             tempPosts.append(post)
                             dispatchGroup.leave()
                         } else {
