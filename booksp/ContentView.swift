@@ -8,6 +8,7 @@ extension UTType {
 }
 
 import Firebase
+import FirebaseFirestore
 
 import RealityKit
 
@@ -166,8 +167,8 @@ struct ContentView: View {
                                     authSuccessMessage = message
                                     showSuccessAlert = true
                                     FirebaseViewModel.shared.isLoggedIn = true
-                                    FirebaseViewModel.shared.mail = ""
-                                    FirebaseViewModel.shared.password = ""
+                                    email = ""
+                                    password = ""
                                 } else {
                                     authFailureMessage = message
                                 }
@@ -239,6 +240,9 @@ struct ContentView: View {
                                     if success {
                                         showingSuccessAlert = true
                                         FirebaseViewModel.shared.isLoggedIn = true
+                                        email = ""
+                                        password = ""
+                                        username = ""
                                     } else {
                                         failureMessage = message
                                     }
@@ -324,6 +328,7 @@ struct Post: Identifiable {
     var videoURL: String
     var thumbnailURL: URL?
     var caption: String?
+    var timestamp: Timestamp?
     var creationDate: Date?
     var fileType: String
     var username: String
@@ -969,17 +974,16 @@ struct Add3DModelView: View {
                 }
             }
         }
-        .alert(isPresented: $isPostingSuccessful) {
-            Alert(
-                
-                title: Text("Posting was successful!"),
-                
-                dismissButton: .default(Text("OK")) {
-                    
-                    confirmedModelURL = nil
-                    
-                    captionText = ""
-                }
+        .actionSheet(isPresented: $isPostingSuccessful) {
+            ActionSheet(
+                title: Text("Successfully posted!"),
+                buttons: [
+                    .default(Text("OK")) {
+                        confirmedModelURL = nil
+                        
+                        captionText = ""
+                    }
+                ]
             )
         }
         

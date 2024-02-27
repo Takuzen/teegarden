@@ -22,8 +22,9 @@ class DetailViewModel: ObservableObject {
                 let caption = data?["caption"] as? String
                 let fileType = data?["fileType"] as? String ?? ""
                 let username = data?["username"] as? String ?? "Unknown"
-                
-                let fetchedPost = Post(id: postID, creatorUserID: userID, videoURL: videoURL, thumbnailURL: thumbnailURL, caption: caption, creationDate: nil, fileType: fileType, username: username)
+                let timestamp = data?["timestamp"] as? Timestamp
+
+                let fetchedPost = Post(id: postID, creatorUserID: userID, videoURL: videoURL, thumbnailURL: thumbnailURL, caption: caption, timestamp: timestamp, creationDate: nil, fileType: fileType, username: username)
                 
                 completion(fetchedPost)
             } else {

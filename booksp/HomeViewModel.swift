@@ -34,6 +34,7 @@ class HomeViewModel: ObservableObject {
                     let videoURL = data["videoURL"] as? String ?? ""
                     let fileType = data["fileType"] as? String ?? ""
                     let timestamp = data["timestamp"] as? Timestamp
+                    let nonOptionalTimestamp = timestamp ?? Timestamp(date: Date())
                     let creationDate = timestamp?.dateValue()
                     let views = data["views"] as? Int ?? 0
 
@@ -44,7 +45,7 @@ class HomeViewModel: ObservableObject {
                         } else if let userDoc = userDoc, userDoc.exists {
                             let userData = userDoc.data()
                             let username = userData?["username"] as? String ?? "Unknown"
-                            let post = Post(id: postID, creatorUserID: userID, videoURL: videoURL, thumbnailURL: thumbnailURL, caption: caption, creationDate: creationDate, fileType: fileType, username: username, views: views)
+                            let post = Post(id: postID, creatorUserID: userID, videoURL: videoURL, thumbnailURL: thumbnailURL, caption: caption, timestamp: nonOptionalTimestamp, creationDate: creationDate, fileType: fileType, username: username, views: views)
                             tempPosts.append(post)
                             dispatchGroup.leave()
                         } else {

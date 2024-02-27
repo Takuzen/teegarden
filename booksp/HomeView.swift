@@ -7,6 +7,7 @@
 
 import SwiftUI
 import RealityKit
+import FirebaseFirestore
 
 struct HomeView: View {
     
@@ -27,6 +28,29 @@ struct HomeView: View {
         }
     }
     
+    func timeAgo(from timestamp: Timestamp?) -> String {
+        guard let timestamp = timestamp else { return "Unknown" }
+        let postDate = timestamp.dateValue()
+        let currentDate = Date()
+        let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: postDate, to: currentDate)
+
+        if let years = components.year, years > 0 {
+            return years == 1 ? "1 year ago" : "\(years) years ago"
+        } else if let months = components.month, months > 0 {
+            return months == 1 ? "1 month ago" : "\(months) months ago"
+        } else if let days = components.day, days > 0 {
+            return days == 1 ? "1 day ago" : "\(days) days ago"
+        } else if let hours = components.hour, hours > 0 {
+            return hours == 1 ? "1 hour ago" : "\(hours) hours ago"
+        } else if let minutes = components.minute, minutes > 0 {
+            return minutes == 1 ? "1 minute ago" : "\(minutes) minutes ago"
+        } else if let seconds = components.second, seconds > 0 {
+            return seconds == 1 ? "1 second ago" : "\(seconds) seconds ago"
+        } else {
+            return "Just now"
+        }
+    }
+    
     var body: some View {
         GeometryReader { geometry in
             VStack {
@@ -41,65 +65,80 @@ struct HomeView: View {
                 .padding(.leading, 15)
                 .padding(.top, 40)
                 .padding(.bottom, 30)
-                
-                VStack {
                     
                     NavigationStack {
                         
+                        HStack{
+                            Text("Recently")
+                                .padding(.leading, 20)
+                                .padding(.bottom, 20)
+                            Spacer()
+                        }
+                        
                         ScrollView(.horizontal, showsIndicators: false) {
+                            
                             let rows = [GridItem(.flexible(minimum: 10, maximum: .infinity), spacing: 20)]
                             
                             LazyHGrid(rows: rows, spacing: 20) {
                                 
-                                ForEach(homeViewModel.homePosts, id: \.id) { post in
-                                    
-                                    VStack {
+                                ForEach(homeViewModel.homePosts.sorted(by: {
+                                    ($0.creationDate ?? Date.distantPast) > ($1.creationDate ?? Date.distantPast)
+                                }), id: \.id) { post in
                                         
-                                        NavigationLink(destination: UserView(userID: post.creatorUserID, username: post.username)) {
+                                    VStack {
+                                        // Head Part
+                                        VStack {
                                             
-                                            HStack {
+                                            VStack {
                                                 
-                                                if let profileImageURL = profileImageURLs[post.creatorUserID] {
-                                                    AsyncImage(url: profileImageURL) { phase in
-                                                        switch phase {
-                                                        case .success(let image):
-                                                            image.resizable()
-                                                                .aspectRatio(contentMode: .fill)
-                                                                .frame(width: 40, height: 40)
-                                                                .clipShape(Circle())
-                                                        case .failure(_):
+                                                NavigationLink(destination: UserView(userID: post.creatorUserID, username: post.username)) {
+                                                    
+                                                    HStack {
+                                                        
+                                                        if let profileImageURL = profileImageURLs[post.creatorUserID] {
+                                                            AsyncImage(url: profileImageURL) { phase in
+                                                                switch phase {
+                                                                case .success(let image):
+                                                                    image.resizable()
+                                                                        .aspectRatio(contentMode: .fill)
+                                                                        .frame(width: 40, height: 40)
+                                                                        .clipShape(Circle())
+                                                                case .failure(_):
+                                                                    Image(systemName: "person.crop.circle.fill")
+                                                                        .resizable()
+                                                                        .frame(width: 30, height: 30)
+                                                                        .clipShape(Circle())
+                                                                case .empty:
+                                                                    ProgressView()
+                                                                @unknown default:
+                                                                    EmptyView()
+                                                                }
+                                                            }
+                                                        } else {
                                                             Image(systemName: "person.crop.circle.fill")
                                                                 .resizable()
                                                                 .frame(width: 30, height: 30)
                                                                 .clipShape(Circle())
-                                                        case .empty:
-                                                            ProgressView()
-                                                        @unknown default:
-                                                            EmptyView()
                                                         }
+                                                        
+                                                        Text(post.username)
+                                                            .bold()
+                                                            .padding(.leading, 5)
+                                                        
+                                                        Spacer()
+                                                        
                                                     }
-                                                } else {
-                                                    Image(systemName: "person.crop.circle.fill")
-                                                        .resizable()
-                                                        .frame(width: 30, height: 30)
-                                                        .clipShape(Circle())
+                                                    .buttonStyle(PlainButtonStyle())
                                                 }
-                                                
-                                                Text(post.username)
-                                                    .bold()
-                                                    .padding(.leading, 5)
-                                                
-                                                Spacer()
-                                                
                                             }
-                                            .padding(.bottom, 25)
-                                            .buttonStyle(PlainButtonStyle())
-                                            .frame(width: 600)
-                                        }
-                                        
-                                        NavigationLink(destination: DetailView(userID: post.creatorUserID, postID: post.id)) {
                                             
-                                            VStack {
+                                        }
+                                        .frame(width: 600, height: 80)
+                                        
+                                        // Main Part
+                                        VStack {
+                                            
+                                            NavigationLink(destination: DetailView(userID: post.creatorUserID, postID: post.id)) {
                                                 
                                                 switch post.fileType {
                                                 case "mov":
@@ -151,8 +190,6 @@ struct HomeView: View {
                                                         }
                                                         .frame(width: 540, height: 187.22)
                                                         .clipShape(RoundedRectangle(cornerRadius: 10))
-                                                        .padding(.top, 55)
-                                                        .padding(.bottom, 55)
                                                         
                                                         Image(systemName: "move.3d")
                                                             .symbolRenderingMode(.palette)
@@ -167,57 +204,59 @@ struct HomeView: View {
                                                         .clipShape(RoundedRectangle(cornerRadius: 10))
                                                 }
                                                 
-                                                HStack {
-                                                    
-                                                    if let caption = post.caption, !caption.isEmpty {
-                                                        Text(caption)
-                                                            .lineLimit(3)
-                                                            .truncationMode(.tail)
-                                                            .frame(maxWidth: 500, alignment: .leading)
-                                                            .padding(.top, 20)
-                                                    }
-                                                    
-                                                    Spacer()
-                                                    
-                                                    HStack {
-                                                        Image(systemName: "visionpro")
-                                                        Text("\(post.views)")
-                                                    }
-                                                    .padding(.trailing, 20)
+                                            }
+                                        }
+                                        .frame(width: 600, height: 200)
+                                        
+                                        // Foot Part
+                                        VStack {
+                                            
+                                            HStack {
+                                                Spacer()
+                                                Image(systemName: "visionpro")
+                                                Text("\(post.views)")
+                                                Image(systemName: "clock")
+                                                Text("\(timeAgo(from: post.timestamp))")
+                                            }
+                                            .padding(.trailing, 20)
+                                            
+                                            
+                                            HStack {
                                                 
+                                                if let caption = post.caption, !caption.isEmpty {
+                                                    Text(caption)
+                                                        .lineLimit(2)
+                                                        .truncationMode(.tail)
+                                                        .frame(width: 560, height: 50, alignment: .leading)
+                                                        .padding(.leading, 20)
+                                                        .padding(.trailing, 20)
                                                 }
                                                 
                                             }
                                             
                                         }
+                                        .frame(width: 600, height: 100)
+                                        .padding(.top, 20)
                                     }
+                                    .frame(width: 600, height: 800)
                                 }
-                                .frame(width: 600, height: 800)
-                                .buttonStyle(PlainButtonStyle())
                             }
-                            
                         }
-                        .padding(.top, 10)
-                        .padding(.bottom, 10)
-                        .frame(height: geometry.size.height / 1.5)
+                        .buttonStyle(PlainButtonStyle())
+                        .frame(maxHeight: 400)
+            
                     }
-                        
-                    }
-                    .frame(width: geometry.size.width, height: geometry.size.height / 3 * 2 + 100)
-                    .padding(.leading, 30)
-                    .padding(.top, -30)
-                    
-                }
-                .onAppear {
-                    homeViewModel.fetchHomePosts {
-                        for post in homeViewModel.homePosts {
-                            fetchProfileImage(for: post.creatorUserID)
+                    .onAppear {
+                        homeViewModel.fetchHomePosts {
+                            for post in homeViewModel.homePosts {
+                                fetchProfileImage(for: post.creatorUserID)
+                            }
                         }
                     }
                 }
-                
-                Spacer()
-                
+                .padding(.leading, 30)
+                .frame(width: geometry.size.width, height: geometry.size.height / 3 * 2 + 100)
             }
+        
         }
     }
