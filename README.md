@@ -1,9 +1,8 @@
-# BookSP
+# Teegarden
 
 ## Getting Started
 
-1. Install these software: [
-Xcode 15 beta 5(.xip)](https://developer.apple.com/download/all/?q=Xcode)
+1. Install the software: [Xcode 15](https://developer.apple.com/download/all/?q=Xcode)
 
 2. Come ask us for `GoogleService-Info.plist` which includes credentials.
 
