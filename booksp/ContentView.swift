@@ -391,7 +391,6 @@ struct SpatialVideoPlayer: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> AVPlayerViewController {
         let controller = AVPlayerViewController()
         controller.player = AVPlayer(url: videoURL)
-        controller.player?.play()
         return controller
     }
 
@@ -568,12 +567,10 @@ struct Add3DModelView: View {
         
         do {
             let fileAttributes = try FileManager.default.attributesOfItem(atPath: firstModelURL.path)
-            if let fileSize = fileAttributes[.size] as? NSNumber, fileSize.intValue <= 104857600 {
-                // File size is within the limit, proceed with the rest of the function
-            } else {
+            if let fileSize = fileAttributes[.size] as? NSNumber, fileSize.intValue > 104857600 {
                 // File size exceeds the limit, show an alert
                 DispatchQueue.main.async {
-                    self.isFileSizeLimitExceeded = true // Set the state variable to show the alert
+                    self.showAlertWith(message: "Your file seems to exceed 100MB.")
                 }
                 return
             }
@@ -935,10 +932,10 @@ struct Add3DModelView: View {
                             )
                         }
                         
-                        Text("We welcome the upload of spatial videos and models.")
+                        Text("Supported file formats include MOV/MV-HEVC, USDZ, and REALITY.")
                             .padding(.top, 5)
 
-                        Text("Supported file formats include MOV/MV-HEVC, USDZ, and REALITY.")
+                        Text("The file size limit is 100MB.")
                         
                         ZStack(alignment: .topLeading) {
                             if captionText.isEmpty && !isEditing {
@@ -987,15 +984,6 @@ struct Add3DModelView: View {
             )
         }
         
-        .alert(isPresented: $isFileSizeLimitExceeded) {
-            Alert(
-                title: Text("File Size Limit Exceeded"),
-                message: Text("The selected file exceeds the 100MB limit. Please choose a smaller file."),
-                dismissButton: .default(Text("OK")) {
-                }
-            )
-        }
-        
         .alert(isPresented: $showAlert) {
             Alert(
                 title: Text(alertMessage),
@@ -1004,8 +992,7 @@ struct Add3DModelView: View {
                 }
             )
         }
-        
-        
+
         .navigationTitle("Post")
     }
 }

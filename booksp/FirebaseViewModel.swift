@@ -454,24 +454,24 @@ class FirebaseViewModel: ObservableObject {
     }
     
     func fetchUsername(userID: String, completion: @escaping (String) -> Void) {
-            let userRef = db.collection("users").document(userID)
-            
-            userRef.getDocument { document, error in
-                if let document = document, document.exists, let userData = document.data() {
-                    if let fetchedUsername = userData["username"] as? String {
-                        DispatchQueue.main.async {
-                            self.username = fetchedUsername
-                            completion(fetchedUsername)
-                        }
-                    } else {
-                        print("Username not found.")
-                        completion("")
+        let userRef = db.collection("users").document(userID)
+        
+        userRef.getDocument { document, error in
+            if let document = document, document.exists, let userData = document.data() {
+                if let fetchedUsername = userData["username"] as? String {
+                    DispatchQueue.main.async {
+                        self.username = fetchedUsername
+                        completion(fetchedUsername)
                     }
-                } else if let error = error {
-                    print("Error fetching username: \(error.localizedDescription)")
+                } else {
+                    print("Username not found.")
                     completion("")
                 }
+            } else if let error = error {
+                print("Error fetching username: \(error.localizedDescription)")
+                completion("")
             }
         }
+    }
     
 }

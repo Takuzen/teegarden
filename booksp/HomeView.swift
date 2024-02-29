@@ -72,6 +72,7 @@ struct HomeView: View {
                             Text("Recently")
                                 .padding(.leading, 20)
                                 .padding(.bottom, 20)
+                                .bold()
                             Spacer()
                         }
                         

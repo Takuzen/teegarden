@@ -23,7 +23,10 @@ struct UserView: View {
     @State private var newIntroductionText = ""
     @State private var profileImageURL: URL?
     @State private var emailCopied = false
+    @State private var showDeletionSheet = false
+    @State private var confirmDeletionAlert = false
     @State private var showEtcSheet = false
+    // @State private var confirmBlockAlert = false
     
     @State private var localBlockSuccessSheet = false
     @State private var localBlockFailureSheet = false
@@ -87,7 +90,36 @@ struct UserView: View {
                                 .bold()
                                 .padding()
                             
-                            if userID == Auth.auth().currentUser?.uid {} else {
+                            if userID == Auth.auth().currentUser?.uid {
+                                
+                                Button(action: {
+                                    showDeletionSheet = true
+                                }) {
+                                    Image(systemName: "ellipsis")
+                                        .frame(width: 30, height: 30)
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                                .actionSheet(isPresented: $showDeletionSheet) {
+                                    ActionSheet(
+                                        title: Text("Actions"),
+                                        buttons: [
+                                            .destructive(Text("Delete My Account")) {
+                                                sendDeletionRequest()
+                                                confirmDeletionAlert = true
+                                            },
+                                            .cancel()
+                                        ]
+                                    )
+                                }
+                                .alert(isPresented: $confirmDeletionAlert) {
+                                    Alert(
+                                        title: Text("Account Deletion Requested"),
+                                        message: Text("We will completely delete your account and all related information in 14 days. Please contact support@teegarden.app if you wish to cancel the deletion request."),
+                                        dismissButton: .default(Text("OK"))
+                                    )
+                                }
+    
+                            } else {
                                 
                                 Button(action: {
                                     UIPasteboard.general.string = FirebaseViewModel.shared.mail
@@ -137,6 +169,17 @@ struct UserView: View {
                                     }
                                     
                                     /*
+                                     
+                                    .alert(isPresented: $confirmBlockAlert) {
+                                        Alert(
+                                            title: Text("Blocked the account."),
+                                            message: Text(FirebaseViewModel.shared.blockSuccessMessage),
+                                            dismissButton: .default(Text("OK")) {
+                                                FirebaseViewModel.shared.blockSuccessMessage = ""
+                                            }
+                                        )
+                                    }
+
                                     .actionSheet(isPresented: $localBlockSuccessSheet) {
 
                                         ActionSheet(title: Text("Successfully blocked!"), message: Text(FirebaseViewModel.shared.blockSuccessMessage), buttons: [.cancel(Text("OK")) { FirebaseViewModel.shared.blockSuccessMessage = "" }])
@@ -148,7 +191,7 @@ struct UserView: View {
                                         
                                     }
                                      */
-                                    //
+
                                     
                                 } else {}
                         
@@ -382,4 +425,23 @@ struct UserView: View {
             }
         }
     }
+    
+    func sendDeletionRequest() {
+        let db = Firestore.firestore()
+        let deletionRequestRef = db.collection("deletionRequest").document(userID)
+
+        let requestData: [String: Any] = [
+            "requestorCustomerID": userID,
+            "requestDate": Timestamp(date: Date())
+        ]
+
+        deletionRequestRef.setData(requestData) { error in
+            if let error = error {
+                print("Error adding deletion request: \(error)")
+            } else {
+                print("Deletion request added successfully")
+            }
+        }
+    }
+    
 }
