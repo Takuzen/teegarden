@@ -560,13 +560,34 @@ struct Add3DModelView: View {
     }
     
     func handleCubeSelection(urls: [URL], shouldOverwrite: Bool = false) {
-        
         guard let firstModelURL = urls.first else {
             return
         }
-        
+
+        let canAccess = firstModelURL.startAccessingSecurityScopedResource()
+
+        defer {
+            firstModelURL.stopAccessingSecurityScopedResource()
+        }
+
+        guard canAccess else {
+            DispatchQueue.main.async {
+                self.alertMessage = "You don't have permission to access the file."
+                self.showAlert = true
+            }
+            return
+        }
+
+        let tempDirectory = FileManager.default.temporaryDirectory
+        let tempFileURL = tempDirectory.appendingPathComponent(firstModelURL.lastPathComponent)
+
         do {
-            let fileAttributes = try FileManager.default.attributesOfItem(atPath: firstModelURL.path)
+            if FileManager.default.fileExists(atPath: tempFileURL.path) {
+                try FileManager.default.removeItem(at: tempFileURL)
+            }
+            try FileManager.default.copyItem(at: firstModelURL, to: tempFileURL)
+
+            let fileAttributes = try FileManager.default.attributesOfItem(atPath: tempFileURL.path)
             if let fileSize = fileAttributes[.size] as? NSNumber, fileSize.intValue > 104857600 {
                 // File size exceeds the limit, show an alert
                 DispatchQueue.main.async {
@@ -576,47 +597,38 @@ struct Add3DModelView: View {
             }
         } catch {
             DispatchQueue.main.async {
-                self.showAlertWith(message: "Failed to get file attributes.")
+                self.showAlertWith(message: "Failed to access or copy the file.")
             }
             return
         }
 
-        let canAccess = firstModelURL.startAccessingSecurityScopedResource()
-        print("Can access firstModelURL: \(canAccess)")
-        
-        if canAccess {
-            switch firstModelURL.pathExtension.lowercased() {
-            case "mov":
-                print("Handling a .mov file")
-                generateThumbnail(url: firstModelURL) { thumbnailURL in
-                    DispatchQueue.main.async {
-                        self.thumbnailURL = thumbnailURL
-                        if let thumbnailURL = thumbnailURL {
-                            print("Thumbnail URL has been set!")
-                            self.processModel(thumbnailURL: thumbnailURL, originalURL: firstModelURL, shouldOverwrite: shouldOverwrite)
-                        } else {
-                            print("Failed to set thumbnail URL.")
-                            self.showAlertWith(message: "Failed to generate thumbnail for the video.")
-                        }
+        // Process the file using the temporary URL
+        switch tempFileURL.pathExtension.lowercased() {
+        case "mov":
+            print("Handling a .mov file")
+            generateThumbnail(url: tempFileURL) { thumbnailURL in
+                DispatchQueue.main.async {
+                    self.thumbnailURL = thumbnailURL
+                    if let thumbnailURL = thumbnailURL {
+                        print("Thumbnail URL has been set!")
+                        self.processModel(thumbnailURL: thumbnailURL, originalURL: tempFileURL, shouldOverwrite: shouldOverwrite)
+                    } else {
+                        print("Failed to set thumbnail URL.")
+                        self.showAlertWith(message: "Failed to generate thumbnail for the video.")
                     }
                 }
-            case "usdz", "reality":
-                print("Handling a .usdz or .reality file")
-                // For usdz and reality files, directly process the model without a thumbnail
-                self.processModel(thumbnailURL: nil, originalURL: firstModelURL, shouldOverwrite: shouldOverwrite)
-            default:
-                print("Unsupported file type.")
-                DispatchQueue.main.async {
-                    self.showAlertWith(message: "Unsupported file type.")
-                }
             }
-        } else {
+        case "usdz", "reality":
+            print("Handling a .usdz or .reality file")
+            // For usdz and reality files, directly process the model without a thumbnail
+            self.processModel(thumbnailURL: nil, originalURL: tempFileURL, shouldOverwrite: shouldOverwrite)
+        default:
             DispatchQueue.main.async {
-                self.alertMessage = "You don't have permission to access the file."
-                self.showAlert = true
+                self.showAlertWith(message: "Unsupported file type.")
             }
         }
     }
+
 
     func processModel(thumbnailURL: URL?, originalURL: URL, shouldOverwrite: Bool) {
         Task {
