@@ -59,11 +59,6 @@
 
 /* Begin PBXFileReference section */
 		CA2CA0992B915FC3004C190B /* UniformTypeIdentifiers.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UniformTypeIdentifiers.framework; path = System/Library/Frameworks/UniformTypeIdentifiers.framework; sourceTree = SDKROOT; };
-		CA2CA09C2B915FC3004C190B /* FileProviderExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileProviderExtension.swift; sourceTree = "<group>"; };
-		CA2CA09E2B915FC3004C190B /* FileProviderItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileProviderItem.swift; sourceTree = "<group>"; };
-		CA2CA0A02B915FC3004C190B /* FileProviderEnumerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileProviderEnumerator.swift; sourceTree = "<group>"; };
-		CA2CA0A22B915FC3004C190B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		CA2CA0A32B915FC3004C190B /* MyFileProviderExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MyFileProviderExtension.entitlements; sourceTree = "<group>"; };
 		CA3A01B02B4D20C400ECEE5A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		CA3A01EB2B552B1A00ECEE5A /* ViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewModel.swift; sourceTree = "<group>"; };
 		CA3FEBB82B731E240056FC5B /* GoogleService-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
@@ -114,25 +109,12 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		CA2CA09B2B915FC3004C190B /* MyFileProviderExtension */ = {
-			isa = PBXGroup;
-			children = (
-				CA2CA09C2B915FC3004C190B /* FileProviderExtension.swift */,
-				CA2CA09E2B915FC3004C190B /* FileProviderItem.swift */,
-				CA2CA0A02B915FC3004C190B /* FileProviderEnumerator.swift */,
-				CA2CA0A22B915FC3004C190B /* Info.plist */,
-				CA2CA0A32B915FC3004C190B /* MyFileProviderExtension.entitlements */,
-			);
-			path = MyFileProviderExtension;
-			sourceTree = "<group>";
-		};
 		CAE2E3842A55904B0035F947 = {
 			isa = PBXGroup;
 			children = (
 				CAE2E38F2A55904B0035F947 /* booksp */,
 				CAE2E3902A55904B0035F947 /* Packages */,
 				CAE2E3A82A55904D0035F947 /* bookspTests */,
-				CA2CA09B2B915FC3004C190B /* MyFileProviderExtension */,
 				CAE2E38E2A55904B0035F947 /* Products */,
 				E99874762A7502C000960EF4 /* Frameworks */,
 			);
@@ -484,9 +466,9 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
-				CODE_SIGN_ENTITLEMENTS = booksp/bookspDebug.entitlements;
+				CODE_SIGN_ENTITLEMENTS = "";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1.0.2;
+				CURRENT_PROJECT_VERSION = 1.0.3;
 				DEVELOPMENT_ASSET_PATHS = "\"booksp/Preview Content\"";
 				DEVELOPMENT_TEAM = TMV96PPK24;
 				ENABLE_PREVIEWS = YES;
@@ -499,7 +481,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.2;
+				MARKETING_VERSION = 1.0.3;
 				PRODUCT_BUNDLE_IDENTIFIER = app.teegarden;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "xros xrsimulator";
@@ -516,9 +498,9 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
-				CODE_SIGN_ENTITLEMENTS = booksp/booksp.entitlements;
+				CODE_SIGN_ENTITLEMENTS = "";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1.0.2;
+				CURRENT_PROJECT_VERSION = 1.0.3;
 				DEVELOPMENT_ASSET_PATHS = "\"booksp/Preview Content\"";
 				DEVELOPMENT_TEAM = TMV96PPK24;
 				ENABLE_PREVIEWS = YES;
@@ -531,7 +513,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.2;
+				MARKETING_VERSION = 1.0.3;
 				PRODUCT_BUNDLE_IDENTIFIER = app.teegarden;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "xros xrsimulator";
