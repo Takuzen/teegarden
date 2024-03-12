@@ -1,6 +1,14 @@
-GoogleService-Info.plist
+# OS X Finder
+.DS_Store
 
 ## User settings
 ## refering to https://github.com/github/gitignore/blob/main/Swift.gitignore
 
 xcuserdata/
+*.xcworkspace/
+
+# Build products
+build/
+
+# Firebase
+GoogleService-Info.plist
