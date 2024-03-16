@@ -264,7 +264,7 @@ struct UserView: View {
                             VStack {
                                 Text("There is no post so far.")
                                     .padding()
-                                NavigationLink(destination: Add3DModelView()) {
+                                NavigationLink(destination: CreateView()) {
                                     Text("Post now →")
                                         .padding()
                                         .foregroundColor(Color.white)
