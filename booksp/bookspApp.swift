@@ -34,6 +34,10 @@ struct bookspApp: App {
             WebViewWindow()
         }.defaultSize(CGSize(width: 1920, height: 1080))
         
+        ImmersiveSpace(id: "ImmersiveSpace") {
+            ImmersiveView()
+                .environment(model)
+        }
 
     }
 }

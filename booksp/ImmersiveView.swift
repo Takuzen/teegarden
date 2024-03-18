@@ -7,6 +7,64 @@
 
 import SwiftUI
 import RealityKit
+import ARKit
+
+struct ImmersiveView: View {
+    
+    @Environment(ViewModel.self) private var viewModel
+    
+    @ObservedObject var arkitSessionManager = ARKitSessionManager()
+    @State private var stickerViews: [StickerView] = []
+    
+    var body: some View {
+        
+        RealityView { content, attachments in
+            
+            content.add(viewModel.setupContentEntity())
+            
+        } update: { content, attachments in
+            for stickerView in stickerViews {
+                if let attachment = attachments.entity(for: stickerView.id) {
+                    if let parent = viewModel.getTargetEntity(name: stickerView.id.uuidString) {
+                        attachment.position = [0, 0, 0]
+                        parent.addChild(attachment)
+                    }
+                }
+            }
+        } attachments: {
+            ForEach(stickerViews) { stickerView in
+                Attachment(id: stickerView.id) {
+                    stickerView
+                }
+            }
+        }
+        .task {
+            await arkitSessionManager.startSession()
+        }
+        .gesture(
+            SpatialTapGesture(count: 2)
+                .targetedToAnyEntity()
+                .onEnded { value in
+                    let stickerView = StickerView()
+                    stickerViews.append(stickerView)
+                    let entity = viewModel.addSpatialPlaceholder(name: stickerView.id.uuidString, value: nil)
+                    let matrix = arkitSessionManager.getOriginFromDeviceTransform()
+                    viewModel.setEntityPosition(entity: entity, matrix: matrix)
+                }
+        )
+        .gesture(
+            LongPressGesture(minimumDuration: 1.0)
+                .targetedToAnyEntity()
+                .onEnded { _ in
+                    viewModel.showImmersiveSpace.toggle()
+                }
+        )
+    }
+}
+
+/*
+import SwiftUI
+import RealityKit
 import RealityKitContent
 import Observation
 import Foundation
@@ -138,7 +196,7 @@ class ImageViewModel {
     }
 }
 
-/*
+
 
 struct ImmersiveView: View {
     @State var model = ImageViewModel()

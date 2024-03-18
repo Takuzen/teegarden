@@ -22,7 +22,7 @@ import AVKit
 struct ContentView: View {
     
     @State private var defaultSelectionForUserMenu: String? = "All"
-    @State private var selectedTab: TabItem = .home
+    @State private var selectedTab: TabItem = .post
     
     @ObservedObject var googleBooksAPI = GoogleBooksAPIRepository()
     
@@ -72,7 +72,7 @@ struct ContentView: View {
                 if FirebaseViewModel.shared.isLoggedIn {
                     CreateViewWrapper()
                 } else {
-                    SignUpView()
+                    CreateViewWrapper()
                 }
             }
             .tabItem {

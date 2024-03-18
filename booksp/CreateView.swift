@@ -9,13 +9,73 @@ import SwiftUI
 import AVKit
 import Firebase
 
+/*
 class AlertViewModel: ObservableObject {
     @Published var showOverwriteAlert: Bool = false
     @Published var alertMessage: String = ""
     // Other alert-related states can be added here
 }
+ */
 
 struct CreateView: View {
+    
+    @Environment(ViewModel.self) private var viewModel
+
+    @Environment(\.openImmersiveSpace) var openImmersiveSpace
+    @Environment(\.dismissImmersiveSpace) var dismissImmersiveSpace
+    
+    var body: some View {
+        
+        @Bindable var viewModel = viewModel
+        
+        NavigationStack {
+            
+            HStack {
+                
+                Spacer()
+                
+                Text("Create A Note")
+                    .bold()
+                    .padding(.trailing, 30)
+                
+                Image(systemName: "hand.tap")
+                    .resizable()
+                    .frame(width: 30, height: 30)
+                    .padding(.leading, 30)
+                    .padding(.trailing, 10)
+                
+                Text("× 2")
+                    .bold()
+                
+                Spacer()
+                
+            }
+            .padding(.bottom, 30)
+            
+            VStack {
+                Toggle(viewModel.showImmersiveSpace ? "LongPress to End & Save" : "Start Session", isOn: $viewModel.showImmersiveSpace)
+                    .toggleStyle(.button)
+            }
+            .padding()
+            .onChange(of: viewModel.showImmersiveSpace) { _, newValue in
+                Task {
+                    if newValue {
+                        await openImmersiveSpace(id: "ImmersiveSpace")
+                    } else {
+                        await dismissImmersiveSpace()
+                    }
+                }
+            }
+            /*
+            VStack {
+                Toggle(viewModel.privateOrPublic ? "Public" : "Private", isOn: $viewModel.privateOrPublic)
+            }
+             */
+        }
+        
+    }
+    
+    /*
     @StateObject private var alertViewModel = AlertViewModel()
     
     @State private var isPickerPresented = false
@@ -511,4 +571,6 @@ struct CreateView: View {
 
         .navigationTitle("Post")
     }
+     */
+    
 }
