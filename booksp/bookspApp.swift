@@ -30,10 +30,17 @@ struct bookspApp: App {
                 .environment(model)
         }
         
-        WindowGroup(id: "webview") {
-            WebViewWindow()
-        }.defaultSize(CGSize(width: 1920, height: 1080))
+        WindowGroup(id: "stickerview", for: StickerView.ID.self) { $stickerID in
+            StickerView()
+        }
         
+        WindowGroup(id: "webview", for: WebViewWindow.ID.self) { $id in
+            WebViewWindow()
+        }
+//        WindowGroup(id: "webview") {
+//            WebViewWindow()
+//        }.defaultSize(CGSize(width: 1920, height: 1080))
+//        
         ImmersiveSpace(id: "ImmersiveSpace") {
             ImmersiveView()
                 .environment(model)

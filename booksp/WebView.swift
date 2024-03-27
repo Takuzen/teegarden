@@ -24,7 +24,8 @@ struct WebView: UIViewRepresentable {
     }
 }
 
-struct WebViewWindow: View {
+struct WebViewWindow: View,Identifiable {
+    var id = UUID()
     var body: some View {
         WebView(loardUrl: URL(string: "https://amzn.asia/d/5D2hIpo")!)
     }

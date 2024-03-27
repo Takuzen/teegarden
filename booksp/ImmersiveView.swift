@@ -15,6 +15,7 @@ struct ImmersiveView: View {
     
     @ObservedObject var arkitSessionManager = ARKitSessionManager()
     @State private var stickerViews: [StickerView] = []
+    @Environment(\.openWindow) var openWindow
     
     var body: some View {
         
@@ -45,11 +46,12 @@ struct ImmersiveView: View {
             SpatialTapGesture(count: 2)
                 .targetedToAnyEntity()
                 .onEnded { value in
-                    let stickerView = StickerView()
-                    stickerViews.append(stickerView)
-                    let entity = viewModel.addSpatialPlaceholder(name: stickerView.id.uuidString, value: nil)
-                    let matrix = arkitSessionManager.getOriginFromDeviceTransform()
-                    viewModel.setEntityPosition(entity: entity, matrix: matrix)
+//                    let stickerView = StickerView()
+//                    stickerViews.append(stickerView)
+//                    let entity = viewModel.addSpatialPlaceholder(name: stickerView.id.uuidString, value: nil)
+//                    let matrix = arkitSessionManager.getOriginFromDeviceTransform()
+//                    viewModel.setEntityPosition(entity: entity, matrix: matrix)
+                    openWindow(id: "stickerview")
                 }
         )
         .gesture(
